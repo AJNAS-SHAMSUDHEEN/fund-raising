@@ -9,7 +9,6 @@ import {
   History,
   Home,
   Heart,
-  Lock,
   User,
   Landmark,
   ChevronRight
@@ -241,32 +240,6 @@ export default function Navbar() {
                   <ChevronRight size={16} color="#94A3B8" />
                 </Link>
               </nav>
-            </div>
-
-            {/* Bottom: Admin Login */}
-            <div style={{ borderTop: '1px solid #E2E8F0', paddingTop: '16px' }}>
-              <Link
-                href="/admin"
-                onClick={() => setIsMenuOpen(false)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '1px solid #CBD5E1',
-                  background: '#F8FAFC',
-                  color: '#475569',
-                  fontWeight: 600,
-                  fontSize: '0.88rem',
-                  textDecoration: 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Lock size={15} />
-                <span>Admin Login</span>
-              </Link>
             </div>
           </div>
         </div>

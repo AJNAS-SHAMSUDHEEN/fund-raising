@@ -67,8 +67,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/admin" style={{ color: 'var(--text-on-dark-muted)', transition: 'color 0.2s' }}>
-                  → Committee &amp; Admin Login
+                <Link href="/live" target="_blank" style={{ color: 'var(--text-on-dark-muted)', transition: 'color 0.2s' }}>
+                  → Live Screen (തത്സമയ സ്ക്രീൻ) ↗
                 </Link>
               </li>
             </ul>

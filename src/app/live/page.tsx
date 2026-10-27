@@ -324,7 +324,7 @@ function LiveScreenContent() {
           </button>
 
           <Link
-            href="/admin"
+            href="/"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -340,7 +340,7 @@ function LiveScreenContent() {
             }}
           >
             <ArrowLeft size={16} />
-            <span>Admin</span>
+            <span>Home</span>
           </Link>
         </div>
       </header>
