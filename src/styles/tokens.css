@@ -1,0 +1,83 @@
+:root {
+  /* Brand Palette - Deep Forest Green */
+  --brand-900: #082819;
+  --brand-800: #0B3B24;
+  --brand-700: #125636;
+  --brand-600: #167046;
+  --brand-500: #1C8C57;
+  --brand-100: #E6F3EC;
+  --brand-50:  #F2F8F4;
+
+  /* Accent Palette - Burnished Gold */
+  --gold-700: #8C6A23;
+  --gold-600: #A8812F;
+  --gold-500: #C5A059;
+  --gold-400: #DBBA7A;
+  --gold-300: #ECD5A5;
+  --gold-100: #FBF6EA;
+  --gold-50:  #FDFBF5;
+
+  /* Neutrals & Surfaces - Warm Cream */
+  --bg-base: #F8F6F0;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --bg-subtle: #F0EDE4;
+  --bg-dark: #071E13;
+  --bg-dark-card: #0D2D1E;
+  
+  /* Text */
+  --text-main: #14221A;
+  --text-muted: #53645A;
+  --text-light: #83948A;
+  --text-on-dark: #FBF9F4;
+  --text-on-dark-muted: #A8BAAF;
+
+  /* Borders & Dividers */
+  --border-light: #E7E3D8;
+  --border-medium: #D5CEBF;
+  --border-dark: #1F4231;
+
+  /* Status Colors */
+  --status-success: #107C41;
+  --status-success-bg: #E6F7EC;
+  --status-warning: #D97706;
+  --status-warning-bg: #FEF3C7;
+  --status-danger: #DC2626;
+  --status-danger-bg: #FEE2E2;
+  --status-info: #2563EB;
+  --status-info-bg: #EFF6FF;
+
+  /* Typography */
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Spacing Scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Border Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(11, 59, 36, 0.05);
+  --shadow-md: 0 4px 12px rgba(11, 59, 36, 0.08);
+  --shadow-lg: 0 12px 32px rgba(11, 59, 36, 0.12);
+  --shadow-gold: 0 8px 24px rgba(197, 160, 89, 0.25);
+  --shadow-dark: 0 12px 36px rgba(0, 0, 0, 0.35);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}

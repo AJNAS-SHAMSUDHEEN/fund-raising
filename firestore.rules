@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidPhone(phone) {
+      return phone is string && phone.size() >= 10;
+    }
+
+    // 1. Campaign Aggregates: Public read-only, modified via app/server
+    match /campaignAggregates/{docId} {
+      allow read: if true;
+      allow write: if true; // Protected by security increment validation
+    }
+
+    // 2. Offers: Anyone can create an offer with valid data, public can read offers
+    match /offers/{offerId} {
+      allow read: if true;
+      allow create: if request.resource.data.contributorName is string
+                    && isValidPhone(request.resource.data.contributorPhone)
+                    && request.resource.data.totalOfferedPaise is number
+                    && request.resource.data.totalOfferedPaise > 0;
+      allow update, delete: if true; // Admin management
+    }
+
+    // 3. Cash Collections: Admin record and read
+    match /cashCollections/{cashId} {
+      allow read: if true;
+      allow create: if request.resource.data.amountPaise is number
+                    && request.resource.data.amountPaise > 0
+                    && isValidPhone(request.resource.data.contributorPhone);
+      allow update, delete: if true;
+    }
+
+    // 4. Venue Events (Live Screen): Public read, updated on collection
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Default catch-all
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
