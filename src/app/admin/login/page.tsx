@@ -12,7 +12,7 @@ export default function AdminLoginPage() {
   const [activeTab, setActiveTab] = useState<'super_admin' | 'volunteer'>('super_admin');
 
   // Super Admin form state
-  const [email, setEmail] = useState('admin@kuppam.org');
+  const [email, setEmail] = useState('salafimasjidkuppam@gmail.com');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -211,7 +211,7 @@ export default function AdminLoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@kuppam.org"
+                    placeholder="salafimasjidkuppam@gmail.com"
                     style={{
                       width: '100%',
                       padding: '12px 14px',

@@ -121,7 +121,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         // Super Admin verified by Firebase Auth
         setAdminUser({
           uid: firebaseUser.uid,
-          email: firebaseUser.email || 'admin@kuppam.org',
+          email: firebaseUser.email || 'salafimasjidkuppam@gmail.com',
           name: 'Committee Super Admin',
           role: 'super_admin',
         });
@@ -161,7 +161,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       // If user does not exist yet and credentials match the authorized committee setup, auto-create
       if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        if (cleanEmail === 'admin@kuppam.org') {
+        if (cleanEmail === 'salafimasjidkuppam@gmail.com' || cleanEmail === 'admin@kuppam.org') {
           try {
             const newCred = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
             const user: AdminUser = {
