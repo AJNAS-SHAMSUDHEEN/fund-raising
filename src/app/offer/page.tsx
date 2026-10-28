@@ -565,42 +565,74 @@ function OfferWorkflowContent() {
 
             {/* CONTROLS PER SELECTED TYPE */}
             <div style={{
-              background: selectedOption === 'cash' ? '#F0FDF4' : '#F8FAFC',
+              background: selectedOption === 'cash' ? 'linear-gradient(180deg, #ECFDF5 0%, #E6F9EE 100%)' : '#F8FAFC',
               borderRadius: '20px',
-              padding: '24px',
-              border: selectedOption === 'cash' ? '1.5px solid #86EFAC' : '1px solid #E2E8F0',
-              boxShadow: selectedOption === 'cash' ? '0 4px 20px rgba(22, 163, 74, 0.08)' : 'none',
+              padding: '24px 20px',
+              border: selectedOption === 'cash' ? '2.5px solid #10B981' : '1px solid #E2E8F0',
+              boxShadow: selectedOption === 'cash' ? '0 10px 30px rgba(16, 185, 129, 0.16)' : 'none',
               marginBottom: '24px',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.25s ease',
             }}>
               {/* 1. Cash / Direct Amount Panel */}
               {selectedOption === 'cash' && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
-                    <label style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--brand-900)' }}>
-                      ഇഷ്ടമുള്ള തുക നൽകുക (Direct Amount) *
-                    </label>
-                    <span style={{ fontSize: '0.82rem', color: '#15803D', fontWeight: 700 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: '#10B981',
+                        boxShadow: '0 0 8px #10B981',
+                        display: 'inline-block'
+                      }} />
+                      <label style={{ fontSize: '1.05rem', fontWeight: 900, color: '#064E3B' }}>
+                        തുക നൽകുക (Enter Amount) *
+                      </label>
+                    </div>
+                    <span style={{
+                      fontSize: '0.78rem',
+                      color: '#065F46',
+                      fontWeight: 800,
+                      background: '#D1FAE5',
+                      padding: '4px 10px',
+                      borderRadius: '9999px',
+                      border: '1px solid #A7F3D0',
+                    }}>
                       കുറഞ്ഞത് ₹10 മുതൽ ഏത് തുകയും നൽകാം
                     </span>
                   </div>
 
-                  <div style={{ position: 'relative', marginBottom: '12px' }}>
-                    <span style={{
-                      position: 'absolute',
-                      left: '16px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      fontSize: '1.6rem',
+                  {/* Prominent Eye-Catching Input Box */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    background: '#FFFFFF',
+                    borderRadius: '16px',
+                    border: errors.amount ? '2.5px solid var(--status-danger)' : '2.5px solid #059669',
+                    boxShadow: '0 4px 18px rgba(5, 150, 105, 0.16)',
+                    overflow: 'hidden',
+                    marginBottom: '12px',
+                    transition: 'all 0.2s ease',
+                  }}>
+                    <div style={{
+                      padding: '16px 22px',
+                      background: 'linear-gradient(135deg, #059669 0%, #064E3B 100%)',
+                      color: '#FFFFFF',
+                      fontFamily: 'var(--font-display)',
                       fontWeight: 900,
-                      color: 'var(--brand-800)',
+                      fontSize: '1.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      userSelect: 'none',
                     }}>
                       ₹
-                    </span>
+                    </div>
                     <input
                       type="number"
                       min={10}
-                      placeholder="തുക നൽകുക (ഉദാ: 500, 1053, 5000)"
+                      placeholder="തുക നൽകുക (Enter Amount)"
                       value={directAmountInput}
                       onChange={(e) => {
                         setDirectAmountInput(e.target.value);
@@ -608,15 +640,14 @@ function OfferWorkflowContent() {
                       }}
                       style={{
                         width: '100%',
-                        padding: '14px 16px 14px 42px',
-                        fontSize: '1.5rem',
+                        padding: '16px 18px',
+                        fontSize: 'clamp(1.3rem, 3.5vw, 1.8rem)',
                         fontWeight: 900,
                         fontFamily: 'var(--font-display)',
-                        borderRadius: '12px',
-                        border: errors.amount ? '2px solid var(--status-danger)' : '2px solid var(--brand-700)',
+                        border: 'none',
+                        outline: 'none',
                         background: '#FFFFFF',
-                        color: 'var(--brand-900)',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                        color: '#064E3B',
                       }}
                     />
                   </div>
