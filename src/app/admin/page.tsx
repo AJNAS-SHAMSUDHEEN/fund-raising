@@ -358,70 +358,93 @@ export default function AdminOverviewPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '14px',
         }}>
-          {INITIAL_EVENTS.map((ev) => (
-            <div
-              key={ev.id}
-              style={{
-                border: '1.5px solid #BBF7D0',
-                background: '#F0FDF4',
-                borderRadius: '16px',
-                padding: '16px 18px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '12px',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <strong style={{ fontSize: '1rem', color: '#14532D' }}>{ev.name}</strong>
-                  <span style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    background: '#DCFCE7',
-                    color: '#15803D',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid #86EFAC',
-                  }}>
-                    {ev.location}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '4px' }}>
-                  Venue Code: <code style={{ color: '#15803D' }}>?event={ev.id}</code>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Link
-                  href={`/live?event=${ev.id}`}
-                  target="_blank"
-                  style={{
-                    fontSize: '0.82rem',
-                    fontWeight: 800,
-                    color: '#15803D',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  <span>📺 Open Live Screen ↗</span>
-                </Link>
-                <Link
-                  href={`/offer?event=${ev.id}`}
-                  target="_blank"
-                  style={{
-                    fontSize: '0.78rem',
-                    color: '#64748B',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Offer Link
-                </Link>
-              </div>
+          {INITIAL_EVENTS.length === 0 ? (
+            <div style={{
+              gridColumn: '1 / -1',
+              padding: '24px',
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              border: '1.5px dashed var(--brand-200)',
+              textAlign: 'center',
+            }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0 0 12px' }}>
+                No events created yet. Add programs to generate venue QR codes and dedicated live presentation screens.
+              </p>
+              <Link
+                href="/admin/events"
+                className="btn btn-outline"
+                style={{ padding: '8px 16px', fontSize: '0.84rem', gap: '6px', display: 'inline-flex' }}
+              >
+                <Plus size={14} />
+                <span>Create First Event</span>
+              </Link>
             </div>
-          ))}
+          ) : (
+            INITIAL_EVENTS.map((ev) => (
+              <div
+                key={ev.id}
+                style={{
+                  border: '1.5px solid #BBF7D0',
+                  background: '#F0FDF4',
+                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <strong style={{ fontSize: '1rem', color: '#14532D' }}>{ev.name}</strong>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      background: '#DCFCE7',
+                      color: '#15803D',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid #86EFAC',
+                    }}>
+                      {ev.location}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '4px' }}>
+                    Venue Code: <code style={{ color: '#15803D' }}>?event={ev.id}</code>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Link
+                    href={`/live?event=${ev.id}`}
+                    target="_blank"
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      color: '#15803D',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>📺 Open Live Screen ↗</span>
+                  </Link>
+                  <Link
+                    href={`/offer?event=${ev.id}`}
+                    target="_blank"
+                    style={{
+                      fontSize: '0.78rem',
+                      color: '#64748B',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Offer Link
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

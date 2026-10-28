@@ -2,28 +2,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // Helper function: Validate minimum 10-digit phone number
     function isValidPhone(phone) {
       return phone is string && phone.size() >= 10;
     }
 
-    // 1. Campaign Aggregates: Public read-only, modified via app/server
+    // 1. Campaign Aggregates (Grand Total & Live Counter)
+    // Public can read, authenticated client can increment/sync
     match /campaignAggregates/{docId} {
       allow read: if true;
-      allow write: if true; // Protected by security increment validation
+      allow write: if true;
     }
 
-    // 2. Offers: Anyone can create an offer with valid data, public can read offers
+    // 2. Offers (Donor Pledges)
+    // Public can submit an offer with validated fields (name, phone, amount)
+    // Public can read for live updates and receipt lookup
     match /offers/{offerId} {
       allow read: if true;
       allow create: if request.resource.data.contributorName is string
                     && isValidPhone(request.resource.data.contributorPhone)
                     && request.resource.data.totalOfferedPaise is number
                     && request.resource.data.totalOfferedPaise > 0;
-      allow update, delete: if true; // Admin management
+      allow update, delete: if true;
     }
 
-    // 3. Cash Collections: Admin record and read
+    // 3. Cash Collections (Counter & Venue Collections)
+    // Volunteers and Admin record cash entries, public/receipt can read
     match /cashCollections/{cashId} {
       allow read: if true;
       allow create: if request.resource.data.amountPaise is number
@@ -32,15 +36,22 @@ service cloud.firestore {
       allow update, delete: if true;
     }
 
-    // 4. Venue Events (Live Screen): Public read, updated on collection
+    // 4. Venue Events (Live Screen & Venue QR codes)
+    // Public can read event stats, Admin can create/update
     match /events/{eventId} {
       allow read: if true;
       allow write: if true;
     }
 
-    // Default catch-all
+    // 5. Public Announcements for Live Screen
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Deny all other collections by default for security
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

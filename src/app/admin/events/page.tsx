@@ -115,7 +115,34 @@ export default function AdminEventsPage() {
         gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
         gap: '20px',
       }}>
-        {events.map((ev) => {
+        {events.length === 0 ? (
+          <div style={{
+            gridColumn: '1 / -1',
+            padding: '48px 24px',
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            border: '2px dashed var(--brand-200)',
+            textAlign: 'center',
+          }}>
+            <Calendar size={44} color="var(--brand-400)" style={{ margin: '0 auto 12px' }} />
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-900)', margin: '0 0 6px' }}>
+              No Events Created Yet
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '440px', margin: '0 auto 20px' }}>
+              The system is fresh and ready! Click below to create your first venue gathering, public fundraising program, or Friday collection event.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="btn btn-primary"
+              style={{ padding: '10px 20px', fontWeight: 700, gap: '8px', margin: '0 auto' }}
+            >
+              <Plus size={18} />
+              <span>Create First Event</span>
+            </button>
+          </div>
+        ) : (
+          events.map((ev) => {
           const liveUrl = `${origin}/live?event=${ev.id}`;
           const offerUrl = `${origin}/offer?event=${ev.id}`;
 
@@ -328,7 +355,7 @@ export default function AdminEventsPage() {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* Modal: Create New Event */}

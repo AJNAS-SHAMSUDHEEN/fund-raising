@@ -18,7 +18,8 @@ import {
   ChevronDown,
   Layers,
   Calendar,
-  QrCode
+  QrCode,
+  Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { subscribeToCampaignAggregates, subscribeToEventAggregates } from '@/lib/firebase/db';
@@ -27,8 +28,8 @@ function LiveScreenContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Selected event from URL query, e.g. /live?event=ulikkal
-  const eventParam = searchParams.get('event') || 'ulikkal';
+  // Selected event from URL query, e.g. /live?event=kuppam
+  const eventParam = searchParams.get('event') || 'general';
   const [selectedEventId, setSelectedEventId] = useState<string>(eventParam);
   const [isEventPickerOpen, setIsEventPickerOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
@@ -42,11 +43,12 @@ function LiveScreenContent() {
   const [overallTotalVerifiedPaise, setOverallTotalVerifiedPaise] = useState(INITIAL_AGGREGATES.totalVerifiedPaise);
 
   // 2. Event-Specific Collection Totals (Big Display - Starts at ₹0 for each new event!)
+  const foundEvent = INITIAL_EVENTS.find((e) => e.id === eventParam);
   const [eventName, setEventName] = useState<string>(
-    INITIAL_EVENTS.find((e) => e.id === eventParam)?.name || `${eventParam.charAt(0).toUpperCase() + eventParam.slice(1)} Event`
+    foundEvent?.name || (eventParam === 'general' ? 'Salafi Masjid Land Project' : `${eventParam.charAt(0).toUpperCase() + eventParam.slice(1)} Event`)
   );
   const [eventLocation, setEventLocation] = useState<string>(
-    INITIAL_EVENTS.find((e) => e.id === eventParam)?.location || 'Event Venue'
+    foundEvent?.location || (eventParam === 'general' ? 'Kuppam Unit' : 'Event Venue')
   );
   const [eventOfferedPaise, setEventOfferedPaise] = useState<number>(0);
   const [eventVerifiedPaise, setEventVerifiedPaise] = useState<number>(0);
@@ -241,6 +243,31 @@ function LiveScreenContent() {
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: '8px', padding: '0 6px', textTransform: 'uppercase' }}>
                 പ്രോഗ്രാം തിരഞ്ഞെടുക്കുക (Switch Event):
               </div>
+
+              <button
+                type="button"
+                onClick={() => switchEvent('general', 'Salafi Masjid Land Project', 'Kuppam Unit')}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: selectedEventId === 'general' ? '#DCFCE7' : 'transparent',
+                  color: selectedEventId === 'general' ? '#15803D' : '#1E293B',
+                  fontWeight: selectedEventId === 'general' ? 800 : 600,
+                  cursor: 'pointer',
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '4px',
+                }}
+              >
+                <span>🕌 Salafi Masjid Land Project</span>
+                {selectedEventId === 'general' && <Check size={16} />}
+              </button>
+
               {INITIAL_EVENTS.map((ev) => (
                 <button
                   key={ev.id}

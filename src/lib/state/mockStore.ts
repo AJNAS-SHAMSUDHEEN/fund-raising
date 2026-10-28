@@ -35,38 +35,4 @@ export const INITIAL_ANNOUNCEMENTS: PublicAnnouncement[] = [];
 
 export const INITIAL_CASH_COLLECTIONS: CashCollection[] = [];
 
-export const INITIAL_EVENTS: CampaignEvent[] = [
-  {
-    id: 'ulikkal',
-    name: 'Ulikkal Event',
-    location: 'Ulikkal',
-    totalOfferedPaise: 0,
-    totalVerifiedPaise: 0,
-    offerCount: 0,
-    verifiedCount: 0,
-    createdAt: new Date().toISOString(),
-    isActive: true,
-  },
-  {
-    id: 'kuppam',
-    name: 'Kuppam Unit Gathering',
-    location: 'Kuppam',
-    totalOfferedPaise: 0,
-    totalVerifiedPaise: 0,
-    offerCount: 0,
-    verifiedCount: 0,
-    createdAt: new Date().toISOString(),
-    isActive: true,
-  },
-  {
-    id: 'general',
-    name: 'General & Office Collection',
-    location: 'Kuppam Office',
-    totalOfferedPaise: 423500000,
-    totalVerifiedPaise: 423500000,
-    offerCount: 142,
-    verifiedCount: 88,
-    createdAt: new Date().toISOString(),
-    isActive: true,
-  },
-];
+export const INITIAL_EVENTS: CampaignEvent[] = [];
