@@ -19,13 +19,18 @@ export function MasjidBanner() {
       background: '#0F172A',
       width: '100%',
     }}>
-      <div style={{ position: 'relative', width: '100%', height: 'clamp(190px, 22vw, 290px)' }}>
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '1680 / 701',
+      }}>
         <Image
           src="/masjid-banner.jpg"
           alt="Salafi Masjid Architecture"
           fill
           priority
-          style={{ objectFit: 'cover' }}
+          sizes="(max-width: 768px) 100vw, 820px"
+          style={{ objectFit: 'contain' }}
         />
       </div>
 
