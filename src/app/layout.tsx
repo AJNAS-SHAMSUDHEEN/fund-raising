@@ -14,6 +14,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://kuppam-collection.vercel.app'),
   title: 'Wisdom Islamic Organization Kuppam Unit — Salafi Masjid Land Project',
   description: 'തളിപ്പറമ്പ് കുപ്പം പ്രദേശത്ത് സലഫി മസ്ജിദിനായി 19.5 സെന്റ് സ്ഥലം ഏറ്റെടുക്കുന്ന പദ്ധതി. വിസ്ഡം ഇസ്ലാമിക് ഓർഗനൈസേഷൻ കുപ്പം യൂണിറ്റ്. 1,10,00,000 രൂപ ലക്ഷ്യം.',
   manifest: '/manifest.json',
@@ -25,6 +26,27 @@ export const metadata: Metadata = {
   icons: {
     icon: '/icons/icon-192.png',
     apple: '/icons/apple-touch-icon.png',
+  },
+  openGraph: {
+    title: 'Wisdom Islamic Organization Kuppam Unit — Salafi Masjid Land Project',
+    description: 'തളിപ്പറമ്പ് കുപ്പം പ്രദേശത്ത് സലഫി മസ്ജിദിനായി 19.5 സെന്റ് സ്ഥലം ഏറ്റെടുക്കുന്ന പദ്ധതി. വിസ്ഡം ഇസ്ലാമിക് ഓർഗനൈസേഷൻ കുപ്പം യൂണിറ്റ്.',
+    url: 'https://kuppam-collection.vercel.app',
+    siteName: 'Salafi Masjid Kuppam',
+    type: 'website',
+    images: [
+      {
+        url: '/icons/icon-192.png',
+        width: 192,
+        height: 192,
+        alt: 'Salafi Masjid Kuppam Logo',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Wisdom Islamic Organization Kuppam Unit — Salafi Masjid Land Project',
+    description: 'തളിപ്പറമ്പ് കുപ്പം പ്രദേശത്ത് സലഫി മസ്ജിദിനായി 19.5 സെന്റ് സ്ഥലം ഏറ്റെടുക്കുന്ന പദ്ധതി.',
+    images: ['/icons/icon-192.png'],
   },
 };
 
