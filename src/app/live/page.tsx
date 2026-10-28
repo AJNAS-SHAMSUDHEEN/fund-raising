@@ -162,26 +162,16 @@ function LiveScreenContent() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <h1 style={{
-                fontSize: 'clamp(1.1rem, 2vw, 1.45rem)',
+                fontSize: 'clamp(1.2rem, 2.2vw, 1.6rem)',
                 fontWeight: 900,
                 color: '#14532D',
                 fontFamily: 'var(--font-display)',
                 margin: 0,
                 lineHeight: 1.2,
+                letterSpacing: '-0.01em',
               }}>
-                Wisdom Islamic Organization
+                SALAFI MASJID KUPPAM
               </h1>
-              <span style={{
-                background: '#DCFCE7',
-                color: '#15803D',
-                fontSize: '0.78rem',
-                fontWeight: 800,
-                padding: '2px 10px',
-                borderRadius: '9999px',
-                border: '1px solid #86EFAC',
-              }}>
-                കുപ്പം യൂണിറ്റ്
-              </span>
             </div>
             <p style={{ fontSize: '0.84rem', color: '#64748B', margin: '2px 0 0 0' }}>
               സലഫി മസ്ജിദ് 19.5 സെന്റ് സ്ഥലം ഏറ്റെടുക്കൽ പദ്ധതി (ആകെ ലക്ഷ്യം: ₹1.10 കോടി)
