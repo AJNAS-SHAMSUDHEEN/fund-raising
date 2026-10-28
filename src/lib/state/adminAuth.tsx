@@ -71,7 +71,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [volunteers, setVolunteers] = useState<VolunteerStaff[]>([]);
 
   // 1. Fetch Volunteers from Firestore (with local fallback)
-  const fetchVolunteers = async (): Promise<VolunteerStaff[]> => {
+  const fetchVolunteers = async () => {
     try {
       const snap = await getDocs(collection(db, 'volunteers'));
       const list: VolunteerStaff[] = [];
@@ -86,7 +86,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const cached = localStorage.getItem('masjid_volunteers_cache');
         if (cached) {
-          const list: VolunteerStaff[] = JSON.parse(cached);
+          const list = JSON.parse(cached);
           setVolunteers(list);
           return list;
         }
@@ -227,17 +227,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       matched = volunteers.find((v) => v.phone.replace(/\D/g, '').slice(-10) === cleanPhone && v.pin === cleanPin);
     }
 
-    // 3. Fallback: re-fetch all volunteers directly from Firestore to catch any recent cross-device adds
-    if (!matched) {
-      try {
-        const freshList = await fetchVolunteers();
-        if (freshList && freshList.length > 0) {
-          matched = freshList.find((v: VolunteerStaff) => v.phone.replace(/\D/g, '').slice(-10) === cleanPhone && v.pin === cleanPin);
-        }
-      } catch (err) {}
-    }
-
-    // 4. Fallback to local cache
+    // 3. Fallback to local cache
     if (!matched) {
       try {
         const cached = localStorage.getItem('masjid_volunteers_cache');

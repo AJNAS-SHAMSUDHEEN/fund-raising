@@ -54,6 +54,7 @@ export interface Offer {
   contributorId: string;
   contributorName?: string;
   contributorPhone: string;
+  contributorPlace?: string;
   offerType: OfferType;
   quantity: number;
   unitRatePaise: number;

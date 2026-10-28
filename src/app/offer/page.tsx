@@ -74,6 +74,7 @@ function OfferWorkflowContent() {
   // 3. STEP 3: Contributor Details
   const [fullName, setFullName] = useState<string>(session.name || '');
   const [phone, setPhone] = useState<string>(session.phone || '');
+  const [place, setPlace] = useState<string>('');
 
   // Validation errors & submission flags
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -187,6 +188,9 @@ function OfferWorkflowContent() {
     if (!cleanPhone || cleanPhone.length !== 10) {
       errs.phone = 'സാധുവായ 10 അക്ക മൊബൈൽ നമ്പർ നൽകുക (Enter a valid 10-digit mobile number)';
     }
+    if (!place.trim()) {
+      errs.place = 'സ്ഥലം നൽകുക (Please enter your place/location)';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -219,6 +223,7 @@ function OfferWorkflowContent() {
       offerNumber: generatedOfferNumber,
       contributorName: resolvedName,
       contributorPhone: cleanPhone,
+      contributorPlace: place.trim(),
       offerType,
       quantity: displayQuantity,
       unitRatePaise,
@@ -238,6 +243,7 @@ function OfferWorkflowContent() {
         offerNumber: generatedOfferNumber,
         contributorName: resolvedName,
         contributorPhone: cleanPhone,
+        contributorPlace: place.trim(),
         offerType,
         quantity: displayQuantity,
         totalOfferedPaise: calculatedTotalPaise,
@@ -1376,6 +1382,39 @@ function OfferWorkflowContent() {
                   Used for digital receipt delivery and contributor verification.
                 </small>
               </div>
+
+              {/* Contributor Place (സ്ഥലം - നിർബന്ധം) * */}
+              <div style={{ marginTop: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--brand-900)', marginBottom: '6px' }}>
+                  Place / സ്ഥലം (നിർബന്ധം) *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter place (e.g. Kuppam, Taliparamba, Dubai)"
+                  value={place}
+                  onChange={(e) => {
+                    setPlace(e.target.value);
+                    if (errors.place) setErrors((prev) => ({ ...prev, place: '' }));
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: errors.place ? '2px solid var(--status-danger)' : '1px solid #CBD5E1',
+                    background: '#FFFFFF',
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                  }}
+                />
+                {errors.place && (
+                  <div style={{ color: 'var(--status-danger)', fontSize: '0.8rem', fontWeight: 600, marginTop: '4px' }}>
+                    {errors.place}
+                  </div>
+                )}
+                <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                  രസീറ്റിലും ഓഫർ ലിസ്റ്റിലും ചേർക്കാനുള്ള സ്ഥലം (Your town, village, or locality).
+                </small>
+              </div>
             </div>
 
             {/* REVIEW SUMMARY CARD */}
@@ -1396,6 +1435,13 @@ function OfferWorkflowContent() {
                   <span style={{ color: 'var(--text-muted)' }}>Contributor:</span>
                   <strong style={{ color: 'var(--brand-900)' }}>
                     {fullName.trim() || 'Well Wisher (സുമനസ്സ്)'} (+91 {phone || '---'})
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Place (സ്ഥലം):</span>
+                  <strong style={{ color: 'var(--brand-900)' }}>
+                    {place.trim() || '---'}
                   </strong>
                 </div>
 
@@ -1552,6 +1598,15 @@ function OfferWorkflowContent() {
                 </strong>
               </div>
 
+              {submittedOffer.contributorPlace && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Place:</span>
+                  <strong style={{ color: '#0F172A' }}>
+                    {submittedOffer.contributorPlace}
+                  </strong>
+                </div>
+              )}
+
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#64748B' }}>Allocated Offer:</span>
                 <strong style={{ color: '#0F172A', textTransform: 'capitalize' }}>
@@ -1606,7 +1661,7 @@ function OfferWorkflowContent() {
 
               <a
                 href={`https://wa.me/919947748552?text=${encodeURIComponent(
-                  `Salafi Masjid Land Acquisition - Wisdom Islamic Organization Kuppam Unit\n\nI have submitted a Land Offer pledge.\nOffer ID: ${submittedOffer.offerNumber}\nName: ${submittedOffer.contributorName}\nAmount: ${formatINRFromPaise(submittedOffer.totalOfferedPaise)}\nPlan: ${submittedOffer.commitmentType === 'one_time' ? 'One-Time' : `${submittedOffer.commitmentMonths} Months`}`
+                  `Salafi Masjid Land Acquisition - Wisdom Islamic Organization Kuppam Unit\n\nI have submitted a Land Offer pledge.\nOffer ID: ${submittedOffer.offerNumber}\nName: ${submittedOffer.contributorName}${submittedOffer.contributorPlace ? `\nPlace: ${submittedOffer.contributorPlace}` : ''}\nAmount: ${formatINRFromPaise(submittedOffer.totalOfferedPaise)}\nPlan: ${submittedOffer.commitmentType === 'one_time' ? 'One-Time' : `${submittedOffer.commitmentMonths} Months`}`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"

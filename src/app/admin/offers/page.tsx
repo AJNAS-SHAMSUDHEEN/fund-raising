@@ -27,6 +27,7 @@ interface MockTransaction {
   orderNumber: string;
   contributorName: string;
   phone: string;
+  place?: string;
   offerType: OfferType;
   quantity: number;
   amountPaise: number;
@@ -81,6 +82,7 @@ export default function OffersLedgerPage() {
               orderNumber: d.offerNumber || docSnap.id.slice(0, 8),
               contributorName: d.contributorName || 'Well Wisher',
               phone: d.contributorPhone || '',
+              place: d.contributorPlace || '',
               offerType: d.offerType || 'cash',
               quantity: d.quantity || 1,
               amountPaise: d.totalOfferedPaise || 0,
@@ -222,6 +224,7 @@ export default function OffersLedgerPage() {
     const matchesSearch =
       item.contributorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.phone.includes(searchTerm) ||
+      (item.place && item.place.toLowerCase().includes(searchTerm.toLowerCase())) ||
       item.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.eventName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = typeFilter === 'all' || item.offerType === typeFilter;
@@ -232,10 +235,10 @@ export default function OffersLedgerPage() {
   });
 
   const exportCSV = () => {
-    const headers = ['Order Number,Contributor,Phone,Offer Type,Units,Amount (INR),Payment Channel,Status,Event,Date\n'];
+    const headers = ['Order Number,Contributor,Phone,Place,Offer Type,Units,Amount (INR),Payment Channel,Status,Event,Date\n'];
     const rows = filtered.map(
       (t) =>
-        `"${t.orderNumber}","${t.contributorName}","+91${t.phone}","${t.offerType.toUpperCase()}",${t.quantity},${t.amountPaise / 100},"${t.channel}","${t.status.toUpperCase()}","${t.eventName}","${t.date}"`
+        `"${t.orderNumber}","${t.contributorName}","+91${t.phone}","${t.place || ''}","${t.offerType.toUpperCase()}",${t.quantity},${t.amountPaise / 100},"${t.channel}","${t.status.toUpperCase()}","${t.eventName}","${t.date}"`
     );
     const blob = new Blob([headers.concat(rows.join('\n')).join('')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -472,6 +475,7 @@ export default function OffersLedgerPage() {
                       <strong style={{ color: 'var(--brand-900)', display: 'block' }}>{item.contributorName}</strong>
                       <small style={{ color: 'var(--text-muted)' }}>
                         {item.phone ? `+91 ${item.phone}` : 'No phone'}
+                        {item.place ? ` • 📍 ${item.place}` : ''}
                       </small>
                     </td>
                     <td style={{ padding: '16px 20px' }}>

@@ -8,6 +8,7 @@ export interface ReportItem {
   timestamp: number;       // For filtering
   contributorName: string;
   phone: string;
+  place?: string;
   type: 'offer' | 'cash';
   category: string;        // 'cash', 'sqft', 'musalla', etc.
   quantity?: number;
@@ -381,6 +382,7 @@ export function exportReportToCsv(items: ReportItem[], fileName = 'Campaign_Tran
     'Reference Number',
     'Contributor Name',
     'Phone',
+    'Place',
     'Type',
     'Category',
     'Collector / Desk',
@@ -393,6 +395,7 @@ export function exportReportToCsv(items: ReportItem[], fileName = 'Campaign_Tran
     `"${item.referenceNumber}"`,
     `"${item.contributorName.replace(/"/g, '""')}"`,
     `"${item.phone}"`,
+    `"${item.place || ''}"`,
     `"${item.type}"`,
     `"${item.category}"`,
     `"${item.collectorOrVenue.replace(/"/g, '""')}"`,

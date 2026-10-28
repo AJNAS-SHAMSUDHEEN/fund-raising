@@ -114,6 +114,7 @@ export default function AdminReportsPage() {
         timestamp: time,
         contributorName: o.contributorName || 'Anonymous Donor',
         phone: o.contributorPhone || '',
+        place: o.contributorPlace || '',
         type: 'offer',
         category: o.offerType || 'cash',
         quantity: o.quantity || 1,
@@ -225,9 +226,10 @@ export default function AdminReportsPage() {
         const q = searchQuery.toLowerCase();
         const matchesName = item.contributorName.toLowerCase().includes(q);
         const matchesPhone = item.phone.includes(q);
+        const matchesPlace = item.place ? item.place.toLowerCase().includes(q) : false;
         const matchesRef = item.referenceNumber.toLowerCase().includes(q);
         const matchesCollector = item.collectorOrVenue.toLowerCase().includes(q);
-        if (!matchesName && !matchesPhone && !matchesRef && !matchesCollector) {
+        if (!matchesName && !matchesPhone && !matchesPlace && !matchesRef && !matchesCollector) {
           return false;
         }
       }

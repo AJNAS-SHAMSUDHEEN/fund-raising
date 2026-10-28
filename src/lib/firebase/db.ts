@@ -64,6 +64,7 @@ const AGGREGATES_DOC_PATH = 'campaignAggregates/main';
 export async function submitOfferToFirebase(offerData: {
   contributorName?: string;
   contributorPhone: string;
+  contributorPlace?: string;
   offerType: OfferType;
   quantity: number;
   totalOfferedPaise: number;
@@ -82,6 +83,7 @@ export async function submitOfferToFirebase(offerData: {
       ...offerData,
       offerNumber: generatedOfferNumber,
       contributorName: offerData.contributorName?.trim() || 'Well Wisher',
+      contributorPlace: offerData.contributorPlace?.trim() || '',
       commitmentType: offerData.commitmentType || 'one_time',
       commitmentMonths: offerData.commitmentMonths || 1,
       unitRatePaise: offerData.unitRatePaise || 0,
