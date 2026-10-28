@@ -68,8 +68,8 @@ function OfferWorkflowContent() {
 
   // 2. STEP 2: Payment Commitment
   const [commitmentType, setCommitmentType] = useState<CommitmentType>('one_time');
-  const [installmentDuration, setInstallmentDuration] = useState<'2' | '3' | '6' | '12' | 'other'>('3');
-  const [customMonthsInput, setCustomMonthsInput] = useState<string>('4');
+  const [installmentDuration, setInstallmentDuration] = useState<'1' | '3' | 'other'>('1');
+  const [customMonthsInput, setCustomMonthsInput] = useState<string>('6');
 
   // 3. STEP 3: Contributor Details
   const [fullName, setFullName] = useState<string>(session.name || '');
@@ -137,7 +137,7 @@ function OfferWorkflowContent() {
   const effectiveMonths = commitmentType === 'one_time'
     ? 1
     : installmentDuration === 'other'
-    ? Math.max(2, parseInt(customMonthsInput, 10) || 2)
+    ? Math.max(1, parseInt(customMonthsInput, 10) || 1)
     : parseInt(installmentDuration, 10);
 
   // ==========================================
@@ -173,8 +173,8 @@ function OfferWorkflowContent() {
     const errs: { [key: string]: string } = {};
     if (commitmentType === 'installments' && installmentDuration === 'other') {
       const parsed = parseInt(customMonthsInput, 10);
-      if (!customMonthsInput.trim() || isNaN(parsed) || parsed < 2 || parsed > 60) {
-        errs.months = 'ദയവായി 2 മുതൽ 60 വരെയുള്ള മാസങ്ങൾ നൽകുക (Enter valid months between 2 and 60)';
+      if (!customMonthsInput.trim() || isNaN(parsed) || parsed < 1 || parsed > 60) {
+        errs.months = 'ദയവായി 1 മുതൽ 60 വരെയുള്ള മാസങ്ങൾ നൽകുക (Enter valid months between 1 and 60)';
       }
     }
     setErrors(errs);
@@ -565,11 +565,13 @@ function OfferWorkflowContent() {
 
             {/* CONTROLS PER SELECTED TYPE */}
             <div style={{
-              background: '#F8FAFC',
-              borderRadius: '16px',
+              background: selectedOption === 'cash' ? '#F0FDF4' : '#F8FAFC',
+              borderRadius: '20px',
               padding: '24px',
-              border: '1px solid #E2E8F0',
+              border: selectedOption === 'cash' ? '1.5px solid #86EFAC' : '1px solid #E2E8F0',
+              boxShadow: selectedOption === 'cash' ? '0 4px 20px rgba(22, 163, 74, 0.08)' : 'none',
               marginBottom: '24px',
+              transition: 'all 0.2s ease',
             }}>
               {/* 1. Cash / Direct Amount Panel */}
               {selectedOption === 'cash' && (
@@ -578,7 +580,7 @@ function OfferWorkflowContent() {
                     <label style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--brand-900)' }}>
                       ഇഷ്ടമുള്ള തുക നൽകുക (Direct Amount) *
                     </label>
-                    <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.82rem', color: '#15803D', fontWeight: 700 }}>
                       കുറഞ്ഞത് ₹10 മുതൽ ഏത് തുകയും നൽകാം
                     </span>
                   </div>
@@ -614,6 +616,7 @@ function OfferWorkflowContent() {
                         border: errors.amount ? '2px solid var(--status-danger)' : '2px solid var(--brand-700)',
                         background: '#FFFFFF',
                         color: 'var(--brand-900)',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                       }}
                     />
                   </div>
@@ -623,13 +626,13 @@ function OfferWorkflowContent() {
                     </div>
                   )}
 
-                  {/* Quick Suggestion Chips (500, 1000, 2000, 5000, 10000, 25000) */}
-                  <div style={{ marginTop: '12px' }}>
-                    <div style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 700, marginBottom: '8px' }}>
+                  {/* Quick Suggestion Chips (25000 descending down to 500) */}
+                  <div style={{ marginTop: '14px' }}>
+                    <div style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 700, marginBottom: '8px' }}>
                       നേരിട്ട് തിരഞ്ഞെടുക്കാം (Quick select):
                     </div>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      {[500, 1000, 2000, 5000, 10000, 25000].map((amt) => {
+                      {[25000, 10000, 5000, 2000, 1000, 500].map((amt) => {
                         const isSelected = directAmountInput === amt.toString();
                         return (
                           <button
@@ -640,15 +643,15 @@ function OfferWorkflowContent() {
                               if (errors.amount) setErrors({});
                             }}
                             style={{
-                              padding: '8px 14px',
+                              padding: '9px 16px',
                               borderRadius: '10px',
                               fontSize: '0.92rem',
                               fontWeight: 800,
-                              border: isSelected ? '2px solid var(--brand-800)' : '1px solid #CBD5E1',
+                              border: isSelected ? '2px solid var(--brand-800)' : '1px solid #BBF7D0',
                               background: isSelected ? 'var(--brand-800)' : '#FFFFFF',
-                              color: isSelected ? '#FFFFFF' : '#1E293B',
+                              color: isSelected ? '#FFFFFF' : '#14532D',
                               cursor: 'pointer',
-                              boxShadow: isSelected ? '0 2px 8px rgba(6, 78, 59, 0.2)' : 'none',
+                              boxShadow: isSelected ? '0 2px 8px rgba(6, 78, 59, 0.2)' : '0 1px 3px rgba(0, 0, 0, 0.03)',
                               transition: 'all 0.15s ease',
                             }}
                           >
@@ -1160,24 +1163,31 @@ function OfferWorkflowContent() {
                           എത്ര മാസത്തിനുള്ളിൽ മുഴുവൻ തുകയും നൽകും? (Within how many months?)
                         </label>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '8px', marginBottom: '10px' }}>
-                          {(['2', '3', '6', '12', 'other'] as const).map((dur) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                          {[
+                            { id: '1', label: '1 Month', ml: '1 മാസം' },
+                            { id: '3', label: '3 Months', ml: '3 മാസം' },
+                            { id: 'other', label: 'Other', ml: 'മറ്റുള്ളവ' },
+                          ].map((item) => (
                             <button
-                              key={dur}
+                              key={item.id}
                               type="button"
-                              onClick={() => setInstallmentDuration(dur)}
+                              onClick={() => setInstallmentDuration(item.id as '1' | '3' | 'other')}
                               style={{
-                                padding: '10px',
-                                borderRadius: '10px',
-                                border: installmentDuration === dur ? '2px solid #16A34A' : '1px solid #CBD5E1',
-                                background: installmentDuration === dur ? '#DCFCE7' : '#FFFFFF',
-                                color: installmentDuration === dur ? '#15803D' : '#334155',
+                                padding: '12px 14px',
+                                borderRadius: '12px',
+                                border: installmentDuration === item.id ? '2.5px solid #16A34A' : '1px solid #CBD5E1',
+                                background: installmentDuration === item.id ? '#DCFCE7' : '#FFFFFF',
+                                color: installmentDuration === item.id ? '#15803D' : '#334155',
                                 fontWeight: 800,
-                                fontSize: '0.88rem',
+                                fontSize: '0.92rem',
                                 cursor: 'pointer',
+                                textAlign: 'center',
+                                transition: 'all 0.15s ease',
                               }}
                             >
-                              {dur === 'other' ? 'Other / മറ്റ്' : `${dur} Months`}
+                              <div>{item.label}</div>
+                              <small style={{ fontSize: '0.74rem', opacity: 0.85 }}>{item.ml}</small>
                             </button>
                           ))}
                         </div>
@@ -1189,11 +1199,11 @@ function OfferWorkflowContent() {
                             </label>
                             <input
                               type="number"
-                              min={2}
+                              min={1}
                               max={60}
                               value={customMonthsInput}
                               onChange={(e) => setCustomMonthsInput(e.target.value)}
-                              placeholder="e.g. 4, 8, 18, 24"
+                              placeholder="e.g. 6, 12, 18, 24"
                               style={{
                                 width: '100%',
                                 maxWidth: '200px',

@@ -59,21 +59,16 @@ export default function BrandLogo({ size = 40, className, showText = false }: Br
       </div>
 
       {showText && (
-        <div>
-          <div
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: '1.05rem',
-              color: 'var(--brand-900, #0F172A)',
-              lineHeight: 1.2,
-            }}
-          >
-            Wisdom Islamic Organization
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 600 }}>
-            Kuppam Unit
-          </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 800,
+            fontSize: '1.05rem',
+            color: 'var(--brand-900, #0F172A)',
+            lineHeight: 1.2,
+          }}
+        >
+          SALAFI MASJID KUPPAM
         </div>
       )}
     </div>

@@ -39,20 +39,15 @@ export default function Navbar() {
           {/* Brand Logo & Title */}
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
             <BrandLogo size={38} />
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
-              <span style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '1.05rem',
-                color: '#0F172A',
-                letterSpacing: '-0.01em',
-              }}>
-                Wisdom Islamic Org
-              </span>
-              <span style={{ fontSize: '0.72rem', color: '#15803D', fontWeight: 700 }}>
-                Kuppam Unit
-              </span>
-            </div>
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 800,
+              fontSize: '1.05rem',
+              color: '#0F172A',
+              letterSpacing: '-0.01em',
+            }}>
+              SALAFI MASJID KUPPAM
+            </span>
           </Link>
 
           {/* Right: Hamburger Menu */}
