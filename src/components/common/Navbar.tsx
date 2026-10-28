@@ -11,7 +11,8 @@ import {
   Heart,
   User,
   Landmark,
-  ChevronRight
+  ChevronRight,
+  Lock
 } from 'lucide-react';
 
 import BrandLogo from './BrandLogo';
@@ -235,6 +236,32 @@ export default function Navbar() {
                   <ChevronRight size={16} color="#94A3B8" />
                 </Link>
               </nav>
+            </div>
+
+            {/* Drawer Bottom: Non-highlight Admin Login */}
+            <div style={{ paddingTop: '16px', borderTop: '1px solid #F1F5F9' }}>
+              <Link
+                href="/admin/login"
+                onClick={() => setIsMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '11px 14px',
+                  borderRadius: '10px',
+                  color: '#64748B',
+                  fontWeight: 600,
+                  fontSize: '0.84rem',
+                  textDecoration: 'none',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Lock size={15} color="#94A3B8" />
+                <span>Admin Login</span>
+              </Link>
             </div>
           </div>
         </div>
