@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { OfferType, CommitmentType } from '@/lib/types';
@@ -75,6 +75,10 @@ function OfferWorkflowContent() {
   const [fullName, setFullName] = useState<string>(session.name || '');
   const [phone, setPhone] = useState<string>(session.phone || '');
   const [place, setPlace] = useState<string>('');
+
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const locationContainerRef = useRef<HTMLDivElement>(null);
+  const locationInputRef = useRef<HTMLInputElement>(null);
 
   // Validation errors & submission flags
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -189,10 +193,38 @@ function OfferWorkflowContent() {
       errs.phone = 'സാധുവായ 10 അക്ക മൊബൈൽ നമ്പർ നൽകുക (Enter a valid 10-digit mobile number)';
     }
     if (!place.trim()) {
-      errs.place = 'സ്ഥലം നൽകുക (Please enter your place/location)';
+      errs.place = 'Please enter the location to continue.';
     }
     setErrors(errs);
-    return Object.keys(errs).length === 0;
+
+    if (Object.keys(errs).length > 0) {
+      // Ensure the missing field is scrolled into view and unobstructed by the sticky header
+      if (!cleanPhone || cleanPhone.length !== 10) {
+        if (phoneInputRef.current) {
+          const headerOffset = 90;
+          const elementPosition = phoneInputRef.current.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+          window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+          setTimeout(() => {
+            phoneInputRef.current?.focus({ preventScroll: true });
+          }, 150);
+        }
+      } else if (!place.trim()) {
+        const target = locationContainerRef.current || locationInputRef.current;
+        if (target) {
+          const headerOffset = 90;
+          const elementPosition = target.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+          window.scrollTo({ top: Math.max(0, offsetPosition), behavior: 'smooth' });
+          setTimeout(() => {
+            locationInputRef.current?.focus({ preventScroll: true });
+          }, 150);
+        }
+      }
+      return false;
+    }
+
+    return true;
   };
 
   // Navigation Handlers
@@ -1354,13 +1386,14 @@ function OfferWorkflowContent() {
                     +91
                   </span>
                   <input
+                    ref={phoneInputRef}
                     type="tel"
                     maxLength={10}
                     placeholder="10-digit mobile number"
                     value={phone}
                     onChange={(e) => {
                       setPhone(e.target.value);
-                      if (errors.phone) setErrors({});
+                      if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
                     }}
                     style={{
                       flex: 1,
@@ -1383,14 +1416,15 @@ function OfferWorkflowContent() {
                 </small>
               </div>
 
-              {/* Contributor Place (സ്ഥലം - നിർബന്ധം) * */}
-              <div style={{ marginTop: '16px' }}>
+              {/* Contributor Location / Place (സ്ഥലം - നിർബന്ധം) * */}
+              <div ref={locationContainerRef} style={{ marginTop: '16px', scrollMarginTop: '100px' }}>
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--brand-900)', marginBottom: '6px' }}>
-                  Place / സ്ഥലം (നിർബന്ധം) *
+                  Location / സ്ഥലം (നിർബന്ധം) *
                 </label>
                 <input
+                  ref={locationInputRef}
                   type="text"
-                  placeholder="Enter place (e.g. Kuppam, Taliparamba, Dubai)"
+                  placeholder="Enter location / place (e.g. Kuppam, Taliparamba, Dubai)"
                   value={place}
                   onChange={(e) => {
                     setPlace(e.target.value);
