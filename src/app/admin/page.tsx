@@ -15,7 +15,8 @@ import {
   Receipt,
   Plus,
   CheckCircle2,
-  ArrowUpRight
+  ArrowUpRight,
+  FileText
 } from 'lucide-react';
 
 export default function AdminOverviewPage() {
@@ -80,6 +81,15 @@ export default function AdminOverviewPage() {
           >
             <Clock size={16} color="var(--status-warning)" />
             <span>Pending Verifications ({INITIAL_CASH_COLLECTIONS.filter(c => c.status === 'pending_verification').length})</span>
+          </Link>
+
+          <Link
+            href="/admin/reports"
+            className="btn btn-outline"
+            style={{ padding: '10px 16px', fontSize: '0.88rem', gap: '6px', background: '#F8FAFC' }}
+          >
+            <FileText size={16} color="var(--brand-800)" />
+            <span>Reports & PDF Backup</span>
           </Link>
 
           <Link

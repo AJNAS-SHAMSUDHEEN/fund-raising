@@ -18,7 +18,8 @@ import {
   Trash2,
   X,
   Smartphone,
-  Lock
+  Lock,
+  FileText
 } from 'lucide-react';
 import { AdminAuthProvider, useAdminAuth, VolunteerStaff } from '@/lib/state/adminAuth';
 
@@ -86,6 +87,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     { label: 'Cash Collection POS', href: '/admin/cash', icon: Coins },
     { label: 'Cash Verification', href: '/admin/verify', icon: CheckCircle2 },
     { label: 'Transactions & Offers', href: '/admin/offers', icon: Receipt },
+    { label: 'Financial Reports', href: '/admin/reports', icon: FileText },
     { label: 'Campaign Settings', href: '/admin/settings', icon: Settings },
   ];
 

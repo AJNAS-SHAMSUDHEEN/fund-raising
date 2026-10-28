@@ -62,52 +62,69 @@ export function YourStatusCard() {
 
   useEffect(() => {
     try {
-      // Check stored offers
+      const cleanSessionPhone = (session.phone || '').replace(/\D/g, '').slice(-10);
+
+      // Check stored offers for matching phone only
+      let localOfferTotalPaise = 0;
       const storedOffers = localStorage.getItem('masjid_user_offers');
-      if (storedOffers) {
+      if (storedOffers && cleanSessionPhone) {
         const parsed = JSON.parse(storedOffers);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const totalOfferedPaise = parsed.reduce((sum: number, o: any) => sum + (o.totalOfferedPaise || 0), 0);
-          if (totalOfferedPaise > 0) {
-            setOfferAmount(Math.round(totalOfferedPaise / 100));
-          }
+          const matching = parsed.filter((o: any) => {
+            const oPhone = (o.contributorPhone || o.phone || '').replace(/\D/g, '').slice(-10);
+            return oPhone === cleanSessionPhone;
+          });
+          localOfferTotalPaise = matching.reduce((sum: number, o: any) => sum + (o.totalOfferedPaise || 0), 0);
         }
       }
+      setOfferAmount(Math.round(localOfferTotalPaise / 100));
 
-      // Check stored cash collections / payments
+      // Check stored cash collections / payments for matching phone only
       const storedDonations = localStorage.getItem('masjid_user_donations');
       const storedCash = localStorage.getItem('masjid_cash_collections');
-      let totalPaidPaise = 0;
+      let localPaidTotalPaise = 0;
 
-      if (storedDonations) {
+      if (storedDonations && cleanSessionPhone) {
         const parsed = JSON.parse(storedDonations);
         if (Array.isArray(parsed)) {
-          totalPaidPaise += parsed.reduce((sum: number, d: any) => sum + (d.amountPaise || 0), 0);
+          const matching = parsed.filter((d: any) => {
+            const dPhone = (d.phone || d.contributorPhone || '').replace(/\D/g, '').slice(-10);
+            return dPhone === cleanSessionPhone;
+          });
+          localPaidTotalPaise += matching.reduce((sum: number, d: any) => sum + (d.amountPaise || 0), 0);
         }
       }
-      if (storedCash) {
+      if (storedCash && cleanSessionPhone) {
         const parsed = JSON.parse(storedCash);
         if (Array.isArray(parsed)) {
-          totalPaidPaise += parsed.reduce((sum: number, c: any) => sum + (c.amountPaise || 0), 0);
+          const matching = parsed.filter((c: any) => {
+            const cPhone = (c.contributorPhone || c.phone || '').replace(/\D/g, '').slice(-10);
+            return cPhone === cleanSessionPhone;
+          });
+          localPaidTotalPaise += matching.reduce((sum: number, c: any) => sum + (c.amountPaise || 0), 0);
         }
       }
-
-      if (totalPaidPaise > 0) {
-        setPaidAmount(Math.round(totalPaidPaise / 100));
-      }
+      setPaidAmount(Math.round(localPaidTotalPaise / 100));
 
       // Fetch from remote Firebase Firestore if phone exists
       if (session.phone) {
         fetchUserContributionsFromFirebase(session.phone).then(({ offers, cashList }) => {
           if (offers && offers.length > 0) {
             const remoteOfferTotal = offers.reduce((sum: number, o: any) => sum + (o.totalOfferedPaise || 0), 0);
-            if (remoteOfferTotal > 0) setOfferAmount(Math.round(remoteOfferTotal / 100));
+            setOfferAmount(Math.round(remoteOfferTotal / 100));
+          } else {
+            setOfferAmount(0);
           }
           if (cashList && cashList.length > 0) {
             const remotePaidTotal = cashList.reduce((sum: number, c: any) => sum + (c.amountPaise || 0), 0);
-            if (remotePaidTotal > 0) setPaidAmount(Math.round(remotePaidTotal / 100));
+            setPaidAmount(Math.round(remotePaidTotal / 100));
+          } else {
+            setPaidAmount(0);
           }
         }).catch(() => { });
+      } else {
+        setOfferAmount(0);
+        setPaidAmount(0);
       }
     } catch (e) { }
   }, [session]);

@@ -46,19 +46,38 @@ export default function HistoryPage() {
   // Read stored offers and donations from localStorage or live Firestore
   useEffect(() => {
     try {
+      const cleanSessionPhone = (session.phone || '').replace(/\D/g, '').slice(-10);
+
       const storedOffers = localStorage.getItem('masjid_user_offers');
-      if (storedOffers) {
+      if (storedOffers && cleanSessionPhone) {
         const parsed = JSON.parse(storedOffers);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setOffers(parsed);
+          const matching = parsed.filter((o: any) => {
+            const oPhone = (o.contributorPhone || o.phone || '').replace(/\D/g, '').slice(-10);
+            return oPhone === cleanSessionPhone;
+          });
+          setOffers(matching);
+        } else {
+          setOffers([]);
         }
+      } else {
+        setOffers([]);
       }
+
       const storedDonations = localStorage.getItem('masjid_user_donations');
-      if (storedDonations) {
+      if (storedDonations && cleanSessionPhone) {
         const parsed = JSON.parse(storedDonations);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setDonations(parsed);
+          const matching = parsed.filter((d: any) => {
+            const dPhone = (d.phone || d.contributorPhone || '').replace(/\D/g, '').slice(-10);
+            return dPhone === cleanSessionPhone;
+          });
+          setDonations(matching);
+        } else {
+          setDonations([]);
         }
+      } else {
+        setDonations([]);
       }
     } catch (e) {}
 
@@ -75,6 +94,8 @@ export default function HistoryPage() {
             date: ro.createdAt?.toDate ? ro.createdAt.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
           }));
           setOffers(mapped);
+        } else {
+          setOffers([]);
         }
         if (remoteCash && remoteCash.length > 0) {
           const mappedCash: UserDonationItem[] = remoteCash.map((rc: any) => ({
@@ -87,8 +108,13 @@ export default function HistoryPage() {
             method: 'CASH',
           }));
           setDonations(mappedCash);
+        } else {
+          setDonations([]);
         }
       }).catch(() => {});
+    } else {
+      setOffers([]);
+      setDonations([]);
     }
   }, [session.phone]);
 
