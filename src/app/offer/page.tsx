@@ -69,7 +69,7 @@ function OfferWorkflowContent() {
   // 2. STEP 2: Payment Commitment
   const [commitmentType, setCommitmentType] = useState<CommitmentType>('one_time');
   const [installmentDuration, setInstallmentDuration] = useState<'1' | '3' | 'other'>('1');
-  const [customMonthsInput, setCustomMonthsInput] = useState<string>('6');
+  const [customMonthsInput, setCustomMonthsInput] = useState<string>('4');
 
   // 3. STEP 3: Contributor Details
   const [fullName, setFullName] = useState<string>(session.name || '');
@@ -1212,7 +1212,12 @@ function OfferWorkflowContent() {
                             <button
                               key={item.id}
                               type="button"
-                              onClick={() => setInstallmentDuration(item.id as '1' | '3' | 'other')}
+                              onClick={() => {
+                                setInstallmentDuration(item.id as '1' | '3' | 'other');
+                                if (item.id === 'other' && (!customMonthsInput || customMonthsInput === '6')) {
+                                  setCustomMonthsInput('4');
+                                }
+                              }}
                               style={{
                                 padding: '12px 14px',
                                 borderRadius: '12px',
@@ -1243,7 +1248,7 @@ function OfferWorkflowContent() {
                               max={60}
                               value={customMonthsInput}
                               onChange={(e) => setCustomMonthsInput(e.target.value)}
-                              placeholder="e.g. 6, 12, 18, 24"
+                              placeholder="e.g. 4, 6, 12, 18, 24"
                               style={{
                                 width: '100%',
                                 maxWidth: '200px',
