@@ -2,12 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useUserSession } from '@/lib/state/userSession';
 import { formatINR } from '@/lib/calculations/currency';
 import { Handshake, CheckCircle2, Hourglass } from 'lucide-react';
 import { fetchUserContributionsFromFirebase } from '@/lib/firebase/db';
 
+const BANNER_IMAGES = [
+  { src: '/banner_images/banner1.jpg', alt: 'മരണത്തിലും മുറിയാത്ത നന്മക്കായി — Salafi Masjid Kuppam' },
+  { src: '/banner_images/banner2.jpg', alt: 'ആരെങ്കിലും അല്ലാഹുവിന് വേണ്ടി ഒരു മസ്ജിദ് നിർമ്മിച്ചാൽ — Salafi Masjid Kuppam' },
+  { src: '/banner_images/banner3.jpg', alt: 'ആരെങ്കിലും ഒരു നന്മ കൊണ്ടുവന്നാൽ അവന് അതിന്റെ പത്തിരട്ടി പ്രതിഫലമുണ്ട് — Salafi Masjid Kuppam' },
+];
+
 export function MasjidBanner() {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % BANNER_IMAGES.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div style={{
       position: 'relative',
@@ -19,25 +35,34 @@ export function MasjidBanner() {
       background: '#0F172A',
       width: '100%',
     }}>
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        aspectRatio: '1680 / 701',
-      }}>
-        <Image
-          src="/masjid-banner.jpg"
-          alt="Salafi Masjid Architecture"
-          fill
-          priority
-          sizes="(max-width: 768px) 100vw, 820px"
-          style={{ objectFit: 'contain' }}
-        />
-      </div>
+      <Link href="/offer" style={{ display: 'block', position: 'relative', width: '100%', aspectRatio: '1600 / 640' }}>
+        {BANNER_IMAGES.map((banner, index) => (
+          <div
+            key={banner.src}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: index === currentIndex ? 1 : 0,
+              transition: 'opacity 0.7s ease-in-out',
+              pointerEvents: index === currentIndex ? 'auto' : 'none',
+            }}
+          >
+            <Image
+              src={banner.src}
+              alt={banner.alt}
+              fill
+              priority={index === 0}
+              sizes="(max-width: 768px) 100vw, 820px"
+              style={{ objectFit: 'contain' }}
+            />
+          </div>
+        ))}
+      </Link>
 
       {/* Carousel Pagination Dots */}
       <div style={{
         position: 'absolute',
-        bottom: '12px',
+        bottom: '10px',
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
@@ -47,12 +72,33 @@ export function MasjidBanner() {
         backdropFilter: 'blur(4px)',
         padding: '4px 10px',
         borderRadius: '9999px',
+        zIndex: 10,
       }}>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.5)' }}></span>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.5)' }}></span>
-        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#FFFFFF' }}></span>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.5)' }}></span>
-        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.5)' }}></span>
+        {BANNER_IMAGES.map((_, index) => {
+          const isActive = index === currentIndex;
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCurrentIndex(index);
+              }}
+              aria-label={`Go to slide ${index + 1}`}
+              style={{
+                width: isActive ? '18px' : '6px',
+                height: '6px',
+                borderRadius: '9999px',
+                background: isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.5)',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+              }}
+            />
+          );
+        })}
       </div>
     </div>
   );
