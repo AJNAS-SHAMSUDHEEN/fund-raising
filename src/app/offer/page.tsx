@@ -302,31 +302,24 @@ function OfferWorkflowContent() {
           <div style={{
             background: '#FFFFFF',
             borderRadius: '16px',
-            padding: '16px 20px',
+            padding: '12px 20px',
             border: '1px solid var(--border-light)',
             boxShadow: 'var(--shadow-sm)',
-            marginBottom: '24px',
+            marginBottom: '20px',
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              position: 'relative',
+              justifyContent: 'center',
+              maxWidth: '280px',
+              margin: '0 auto',
             }}>
               {/* Step 1 Indicator */}
               <div
                 onClick={() => { if (currentStep > 1) setCurrentStep(1); }}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: currentStep > 1 ? 'pointer' : 'default',
-                  opacity: currentStep === 1 ? 1 : 0.8,
-                }}
-              >
-                <div style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   background: currentStep >= 1 ? 'var(--brand-800)' : '#E2E8F0',
                   color: '#FFFFFF',
@@ -334,24 +327,22 @@ function OfferWorkflowContent() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 800,
-                  fontSize: '0.9rem',
-                }}>
-                  {currentStep > 1 ? <Check size={16} /> : '1'}
-                </div>
-                <div>
-                  <strong style={{ fontSize: '0.85rem', color: currentStep === 1 ? 'var(--brand-900)' : '#64748B', display: 'block' }}>
-                    1. Offer Details
-                  </strong>
-                  <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>ഓഫർ വിവരങ്ങൾ</span>
-                </div>
+                  fontSize: '0.8rem',
+                  cursor: currentStep > 1 ? 'pointer' : 'default',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                  boxShadow: currentStep === 1 ? '0 0 0 3px rgba(6, 78, 59, 0.15)' : 'none',
+                }}
+              >
+                {currentStep > 1 ? <Check size={14} /> : '1'}
               </div>
 
               {/* Connecting Line 1-2 */}
               <div style={{
                 flex: 1,
-                height: '3px',
+                height: '2.5px',
                 background: currentStep >= 2 ? 'var(--brand-700)' : '#E2E8F0',
-                margin: '0 12px',
+                margin: '0 10px',
                 borderRadius: '9999px',
                 transition: 'background 0.3s ease',
               }} />
@@ -360,16 +351,8 @@ function OfferWorkflowContent() {
               <div
                 onClick={() => { if (currentStep > 2) setCurrentStep(2); }}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  cursor: currentStep > 2 ? 'pointer' : 'default',
-                  opacity: currentStep === 2 ? 1 : currentStep > 2 ? 0.8 : 0.6,
-                }}
-              >
-                <div style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '26px',
+                  height: '26px',
                   borderRadius: '50%',
                   background: currentStep >= 2 ? 'var(--brand-800)' : '#E2E8F0',
                   color: currentStep >= 2 ? '#FFFFFF' : '#64748B',
@@ -377,55 +360,43 @@ function OfferWorkflowContent() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 800,
-                  fontSize: '0.9rem',
-                }}>
-                  {currentStep > 2 ? <Check size={16} /> : '2'}
-                </div>
-                <div>
-                  <strong style={{ fontSize: '0.85rem', color: currentStep === 2 ? 'var(--brand-900)' : '#64748B', display: 'block' }}>
-                    2. Payment Plan
-                  </strong>
-                  <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>പെയ്മെന്റ് പ്ലാൻ</span>
-                </div>
+                  fontSize: '0.8rem',
+                  cursor: currentStep > 2 ? 'pointer' : 'default',
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0,
+                  boxShadow: currentStep === 2 ? '0 0 0 3px rgba(6, 78, 59, 0.15)' : 'none',
+                }}
+              >
+                {currentStep > 2 ? <Check size={14} /> : '2'}
               </div>
 
               {/* Connecting Line 2-3 */}
               <div style={{
                 flex: 1,
-                height: '3px',
+                height: '2.5px',
                 background: currentStep >= 3 ? 'var(--brand-700)' : '#E2E8F0',
-                margin: '0 12px',
+                margin: '0 10px',
                 borderRadius: '9999px',
                 transition: 'background 0.3s ease',
               }} />
 
               {/* Step 3 Indicator */}
               <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                background: currentStep === 3 ? 'var(--brand-800)' : '#E2E8F0',
+                color: currentStep === 3 ? '#FFFFFF' : '#64748B',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                opacity: currentStep === 3 ? 1 : 0.6,
+                justifyContent: 'center',
+                fontWeight: 800,
+                fontSize: '0.8rem',
+                flexShrink: 0,
+                transition: 'all 0.2s ease',
+                boxShadow: currentStep === 3 ? '0 0 0 3px rgba(6, 78, 59, 0.15)' : 'none',
               }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background: currentStep === 3 ? 'var(--brand-800)' : '#E2E8F0',
-                  color: currentStep === 3 ? '#FFFFFF' : '#64748B',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: '0.9rem',
-                }}>
-                  3
-                </div>
-                <div>
-                  <strong style={{ fontSize: '0.85rem', color: currentStep === 3 ? 'var(--brand-900)' : '#64748B', display: 'block' }}>
-                    3. Review &amp; Confirm
-                  </strong>
-                  <span style={{ fontSize: '0.72rem', color: '#94A3B8' }}>സ്ഥിരീകരിക്കുക</span>
-                </div>
+                3
               </div>
             </div>
           </div>
