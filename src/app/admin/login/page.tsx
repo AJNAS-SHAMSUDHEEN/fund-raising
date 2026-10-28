@@ -11,8 +11,8 @@ export default function AdminLoginPage() {
 
   const [activeTab, setActiveTab] = useState<'super_admin' | 'volunteer'>('super_admin');
 
-  // Super Admin form state
-  const [email, setEmail] = useState('salafimasjidkuppam@gmail.com');
+  // Super Admin form state (Empty by default for security)
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -211,7 +211,7 @@ export default function AdminLoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="salafimasjidkuppam@gmail.com"
+                    placeholder="Enter committee admin email"
                     style={{
                       width: '100%',
                       padding: '12px 14px',

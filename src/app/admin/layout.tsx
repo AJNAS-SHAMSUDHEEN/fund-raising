@@ -19,7 +19,8 @@ import {
   X,
   Smartphone,
   Lock,
-  FileText
+  FileText,
+  Menu
 } from 'lucide-react';
 import { AdminAuthProvider, useAdminAuth, VolunteerStaff } from '@/lib/state/adminAuth';
 
@@ -29,6 +30,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const { adminUser, isLoading, logout, volunteers, addVolunteer, removeVolunteer } = useAdminAuth();
 
   const [isVolunteerModalOpen, setIsVolunteerModalOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [newVolName, setNewVolName] = useState('');
   const [newVolPhone, setNewVolPhone] = useState('');
   const [newVolPin, setNewVolPin] = useState('');
@@ -38,6 +40,11 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
   // If on login page, render children directly without admin sidebar
   const isLoginPage = pathname === '/admin/login';
+
+  // Auto-close mobile drawer when navigating
+  useEffect(() => {
+    setIsMobileDrawerOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!isLoading && !adminUser && !isLoginPage) {
@@ -116,8 +123,91 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="admin-layout-container">
-      {/* Admin Sidebar */}
-      <aside className="admin-sidebar">
+      {/* Mobile Sticky Navigation Header (<900px only) */}
+      <div className="admin-mobile-topbar">
+        <button
+          type="button"
+          onClick={() => setIsMobileDrawerOpen(true)}
+          className="admin-mobile-menu-btn"
+        >
+          <Menu size={18} />
+          <span>Admin Menu</span>
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: 'var(--brand-900)' }}>
+            {currentNavItems.find((i) => i.href === pathname)?.label || 'Dashboard'}
+          </span>
+          <span className={`badge ${isSuperAdmin ? 'badge-gold' : 'badge-brand'}`} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
+            {isSuperAdmin ? 'SUPER ADMIN' : 'VOLUNTEER'}
+          </span>
+        </div>
+
+        <Link
+          href="/live"
+          target="_blank"
+          style={{
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            color: '#15803D',
+            background: '#DCFCE7',
+            padding: '5px 10px',
+            borderRadius: '6px',
+            textDecoration: 'none',
+          }}
+        >
+          📺 Live
+        </Link>
+      </div>
+
+      {/* Drawer Overlay Backdrop for Mobile */}
+      {isMobileDrawerOpen && (
+        <div
+          className="admin-drawer-backdrop"
+          onClick={() => setIsMobileDrawerOpen(false)}
+        />
+      )}
+
+      {/* Admin Sidebar (Slide-out drawer on Mobile, fixed column on Desktop) */}
+      <aside className={`admin-sidebar ${isMobileDrawerOpen ? 'drawer-open' : ''}`}>
+        {/* Mobile Drawer Header with Close Button (<900px only) */}
+        <div className="admin-drawer-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: 'var(--brand-800)',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <ShieldCheck size={16} color="var(--gold-400)" />
+            </div>
+            <strong style={{ fontSize: '0.92rem', color: 'var(--brand-900)' }}>
+              Admin Menu
+            </strong>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileDrawerOpen(false)}
+            style={{
+              padding: '6px',
+              background: '#F1F5F9',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              color: '#475569',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
         <div>
           {/* Admin Identity Card */}
           <div style={{
@@ -171,6 +261,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setIsMobileDrawerOpen(false)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -199,7 +290,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <div style={{ marginTop: '14px' }}>
               <button
                 type="button"
-                onClick={() => setIsVolunteerModalOpen(true)}
+                onClick={() => {
+                  setIsVolunteerModalOpen(true);
+                  setIsMobileDrawerOpen(false);
+                }}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -232,6 +326,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <Link
               href="/live"
               target="_blank"
+              onClick={() => setIsMobileDrawerOpen(false)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -258,6 +353,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             onClick={async () => {
+              setIsMobileDrawerOpen(false);
               await logout();
               router.push('/admin/login');
             }}
@@ -280,6 +376,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
           <Link
             href="/"
+            onClick={() => setIsMobileDrawerOpen(false)}
             style={{
               display: 'flex',
               alignItems: 'center',
