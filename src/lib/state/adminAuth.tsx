@@ -15,6 +15,8 @@ import {
   getDoc,
   getDocs,
   deleteDoc,
+  query,
+  where,
   serverTimestamp
 } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/client';
@@ -69,33 +71,27 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [volunteers, setVolunteers] = useState<VolunteerStaff[]>([]);
 
   // 1. Fetch Volunteers from Firestore (with local fallback)
-  const fetchVolunteers = async () => {
+  const fetchVolunteers = async (): Promise<VolunteerStaff[]> => {
     try {
       const snap = await getDocs(collection(db, 'volunteers'));
-      if (!snap.empty) {
-        const list: VolunteerStaff[] = [];
-        snap.forEach((d) => {
-          list.push({ id: d.id, ...(d.data() as any) });
-        });
-        setVolunteers(list);
-        localStorage.setItem('masjid_volunteers_cache', JSON.stringify(list));
-        return;
-      }
+      const list: VolunteerStaff[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...(d.data() as any) });
+      });
+      setVolunteers(list);
+      localStorage.setItem('masjid_volunteers_cache', JSON.stringify(list));
+      return list;
     } catch (e) {
       console.warn('Firestore volunteers fetch error, falling back to local cache:', e);
-    }
-
-    // Fallback to local storage or defaults
-    try {
-      const cached = localStorage.getItem('masjid_volunteers_cache');
-      if (cached) {
-        setVolunteers(JSON.parse(cached));
-      } else {
-        setVolunteers(DEFAULT_VOLUNTEERS);
-        localStorage.setItem('masjid_volunteers_cache', JSON.stringify(DEFAULT_VOLUNTEERS));
-      }
-    } catch (e) {
-      setVolunteers(DEFAULT_VOLUNTEERS);
+      try {
+        const cached = localStorage.getItem('masjid_volunteers_cache');
+        if (cached) {
+          const list: VolunteerStaff[] = JSON.parse(cached);
+          setVolunteers(list);
+          return list;
+        }
+      } catch (err) {}
+      return [];
     }
   };
 
@@ -208,10 +204,40 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: 'PIN must be at least 4 digits.' };
     }
 
-    // Match against volunteers list
-    let matched = volunteers.find((v) => v.phone.replace(/\D/g, '').slice(-10) === cleanPhone && v.pin === cleanPin);
+    let matched: VolunteerStaff | undefined;
 
-    // If not found in memory, re-fetch from cache
+    // 1. Direct query to Firestore for real-time authentication across any device
+    try {
+      const q = query(collection(db, 'volunteers'), where('phone', '==', cleanPhone));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        snap.forEach((d) => {
+          const data = d.data() as VolunteerStaff;
+          if (data.pin === cleanPin) {
+            matched = { ...data, id: d.id };
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Direct Firestore volunteer lookup failed, checking local memory/cache:', err);
+    }
+
+    // 2. Fallback to in-memory volunteers list
+    if (!matched) {
+      matched = volunteers.find((v) => v.phone.replace(/\D/g, '').slice(-10) === cleanPhone && v.pin === cleanPin);
+    }
+
+    // 3. Fallback: re-fetch all volunteers directly from Firestore to catch any recent cross-device adds
+    if (!matched) {
+      try {
+        const freshList = await fetchVolunteers();
+        if (freshList && freshList.length > 0) {
+          matched = freshList.find((v: VolunteerStaff) => v.phone.replace(/\D/g, '').slice(-10) === cleanPhone && v.pin === cleanPin);
+        }
+      } catch (err) {}
+    }
+
+    // 4. Fallback to local cache
     if (!matched) {
       try {
         const cached = localStorage.getItem('masjid_volunteers_cache');
@@ -258,16 +284,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      // Save to Firestore
+      // Save directly to Firestore
       await setDoc(doc(db, 'volunteers', newVol.id), {
         ...newVol,
         updatedAt: serverTimestamp(),
       });
-    } catch (e) {
-      console.warn('Firestore save volunteer fallback to local:', e);
+    } catch (e: any) {
+      console.error('Firestore save volunteer error:', e);
+      return { success: false, error: `Failed to save to database: ${e?.message || 'Check firestore rules'}` };
     }
 
-    const updated = [newVol, ...volunteers];
+    const updated = [newVol, ...volunteers.filter((v) => v.id !== newVol.id)];
     setVolunteers(updated);
     localStorage.setItem('masjid_volunteers_cache', JSON.stringify(updated));
 
@@ -278,8 +305,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const removeVolunteer = async (id: string): Promise<{ success: boolean; error?: string }> => {
     try {
       await deleteDoc(doc(db, 'volunteers', id));
-    } catch (e) {
-      console.warn('Firestore delete volunteer fallback to local:', e);
+    } catch (e: any) {
+      console.error('Firestore delete volunteer error:', e);
+      return { success: false, error: `Failed to delete from database: ${e?.message || 'Error'}` };
     }
 
     const updated = volunteers.filter((v) => v.id !== id);

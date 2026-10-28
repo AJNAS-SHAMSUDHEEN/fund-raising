@@ -49,6 +49,13 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // 6. Volunteers (Staff PIN Authentication & POS Staff)
+    // Synchronized across all devices in real-time
+    match /volunteers/{volunteerId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // Deny all other collections by default for security
     match /{document=**} {
       allow read, write: if false;
