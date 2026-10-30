@@ -13,9 +13,38 @@ export default function StickyBottomBar() {
 
   // Pay Now Modal State
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-  const [payAmount, setPayAmount] = useState<string>('1000');
+  const [selectedCategory, setSelectedCategory] = useState<'cash' | 'musalla5' | 'musalla1' | 'cent' | 'sqft'>('cash');
+  const [quantity, setQuantity] = useState<number>(1);
+  const [payAmount, setPayAmount] = useState<string>(''); // Default empty, not 1000
   const [payName, setPayName] = useState<string>(session.name || '');
   const [payPhone, setPayPhone] = useState<string>(session.phone || '');
+
+  // Predefined rates in Rupees matching the campaign
+  const RATES: Record<string, number> = {
+    musalla5: 51800,
+    musalla1: 10360,
+    cent: 564103,
+    sqft: 1295,
+  };
+
+  const handleSelectCategory = (cat: 'cash' | 'musalla5' | 'musalla1' | 'cent' | 'sqft') => {
+    setSelectedCategory(cat);
+    if (cat === 'cash') {
+      setPayAmount('');
+    } else {
+      const rate = RATES[cat] || 0;
+      setPayAmount((rate * quantity).toString());
+    }
+  };
+
+  const handleQuantityChange = (newQty: number) => {
+    const q = Math.max(1, newQty);
+    setQuantity(q);
+    if (selectedCategory !== 'cash') {
+      const rate = RATES[selectedCategory] || 0;
+      setPayAmount((rate * q).toString());
+    }
+  };
 
   // Hide sticky bar on /live, /admin, or /receipt
   if (
@@ -36,10 +65,18 @@ export default function StickyBottomBar() {
   const handleProceedToWhatsApp = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanAmount = parseInt(payAmount.replace(/\D/g, ''), 10) || 0;
+    if (cleanAmount <= 0) return;
+
     const donorName = payName.trim() || session.name || 'Well Wisher';
     const donorPhone = payPhone.replace(/\D/g, '').slice(-10) || session.phone || 'ലഭ്യമല്ല';
 
-    const message = `അസ്സലാമു അലൈക്കും. സലഫി മസ്ജിദ് കുപ്പം ഫണ്ട് റെയ്‌സിംഗിലേക്ക് ഞാൻ ഇപ്പോൾ ₹${cleanAmount.toLocaleString('en-IN')} നൽകാൻ ആഗ്രഹിക്കുന്നു. ദയവായി പേയ്‌മെന്റ് വിവരങ്ങൾ നൽകുക.\nപേര്: ${donorName}\nഫോൺ: ${donorPhone !== 'ലഭ്യമല്ല' ? `+91 ${donorPhone}` : donorPhone}`;
+    let catLabel = 'ഡയറക്റ്റ് തുക';
+    if (selectedCategory === 'musalla5') catLabel = `${quantity > 1 ? `${quantity} x ` : ''}5 മുസല്ല പാക്കേജ്`;
+    else if (selectedCategory === 'musalla1') catLabel = `${quantity} മുസല്ല`;
+    else if (selectedCategory === 'cent') catLabel = `${quantity} സെന്റ്`;
+    else if (selectedCategory === 'sqft') catLabel = `${quantity} സ്ക്വയർ ഫീറ്റ്`;
+
+    const message = `അസ്സലാമു അലൈക്കും. സലഫി മസ്ജിദ് കുപ്പം ഫണ്ട് റെയ്‌സിംഗിലേക്ക് ഞാൻ ഇപ്പോൾ (${catLabel}) ₹${cleanAmount.toLocaleString('en-IN')} നൽകാൻ ആഗ്രഹിക്കുന്നു. ദയവായി പേയ്‌മെന്റ് വിവരങ്ങൾ നൽകുക.\nപേര്: ${donorName}\nഫോൺ: ${donorPhone !== 'ലഭ്യമല്ല' ? `+91 ${donorPhone}` : donorPhone}`;
     const url = `https://wa.me/919947748552?text=${encodeURIComponent(message)}`;
 
     setIsPayModalOpen(false);
@@ -201,10 +238,137 @@ export default function StickyBottomBar() {
 
             {/* Pay Amount Form */}
             <form onSubmit={handleProceedToWhatsApp}>
+              {/* Category Selection Tabs (Matching Offer System) */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                  സംഭാവന ഇനം തിരഞ്ഞെടുക്കുക (Contribution Type)
+                </label>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                  gap: '8px',
+                }}>
+                  {[
+                    { id: 'cash', title: 'Cash / Other', sub: 'ഏത് തുകയും', badge: null },
+                    { id: 'musalla5', title: '5 Musalla', sub: '₹51,800', badge: 'Package' },
+                    { id: 'musalla1', title: '1 Musalla', sub: '₹10,360', badge: 'Popular' },
+                    { id: 'cent', title: '1 Cent', sub: '₹5,64,103', badge: null },
+                    { id: 'sqft', title: '1 Sq Ft', sub: '₹1,295', badge: null },
+                  ].map((cat) => {
+                    const isSelected = selectedCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => handleSelectCategory(cat.id as any)}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '12px',
+                          border: isSelected ? '2px solid #16A34A' : '1.5px solid #E2E8F0',
+                          background: isSelected ? '#F0FDF4' : '#FFFFFF',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          transition: 'all 0.15s ease',
+                          position: 'relative',
+                        }}
+                      >
+                        {cat.badge && (
+                          <span style={{
+                            position: 'absolute',
+                            top: '-6px',
+                            right: '8px',
+                            background: '#16A34A',
+                            color: '#FFFFFF',
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            padding: '1px 6px',
+                            borderRadius: '10px',
+                          }}>
+                            {cat.badge}
+                          </span>
+                        )}
+                        <span style={{ fontSize: '0.84rem', fontWeight: 800, color: isSelected ? '#15803D' : '#0F172A' }}>
+                          {cat.title}
+                        </span>
+                        <span style={{ fontSize: '0.74rem', color: isSelected ? '#16A34A' : '#64748B', fontWeight: 600 }}>
+                          {cat.sub}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quantity Stepper (for Non-Cash items) */}
+              {selectedCategory !== 'cash' && (
+                <div style={{
+                  marginBottom: '16px',
+                  padding: '10px 14px',
+                  background: '#F8FAFC',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                    എണ്ണം (Quantity):
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontWeight: 800,
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      -
+                    </button>
+                    <span style={{ fontWeight: 800, fontSize: '1rem', minWidth: '24px', textAlign: 'center', color: '#0F172A' }}>
+                      {quantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontWeight: 800,
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Amount Input */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 800, color: '#0F172A', marginBottom: '6px' }}>
-                  തുക നൽകുക (Amount in ₹) *
+                  {selectedCategory === 'cash' ? 'തുക നൽകുക (Enter Amount in ₹) *' : 'ആകെ തുക (Total Amount in ₹) *'}
                 </label>
                 <div style={{
                   display: 'flex',
@@ -231,8 +395,8 @@ export default function StickyBottomBar() {
                   <input
                     type="number"
                     required
-                    min={10}
-                    placeholder="തുക നൽകുക"
+                    min={1}
+                    placeholder="നിങ്ങൾ നൽകാൻ ഉദ്ദേശിക്കുന്ന തുക"
                     value={payAmount}
                     onChange={(e) => setPayAmount(e.target.value)}
                     style={{
@@ -248,32 +412,34 @@ export default function StickyBottomBar() {
                   />
                 </div>
 
-                {/* Quick Selection Chips (Descending) */}
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
-                  {[25000, 10000, 5000, 2000, 1000, 500].map((amt) => {
-                    const isSelected = payAmount === amt.toString();
-                    return (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setPayAmount(amt.toString())}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '8px',
-                          fontSize: '0.85rem',
-                          fontWeight: 800,
-                          border: isSelected ? '2px solid #16A34A' : '1px solid #CBD5E1',
-                          background: isSelected ? '#16A34A' : '#F8FAFC',
-                          color: isSelected ? '#FFFFFF' : '#334155',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        {formatINR(amt)}
-                      </button>
-                    );
-                  })}
-                </div>
+                {/* Quick Selection Chips for Cash Option */}
+                {selectedCategory === 'cash' && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+                    {[25000, 10000, 5000, 2000, 1000, 500].map((amt) => {
+                      const isSelected = payAmount === amt.toString();
+                      return (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setPayAmount(amt.toString())}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            border: isSelected ? '2px solid #16A34A' : '1px solid #CBD5E1',
+                            background: isSelected ? '#16A34A' : '#F8FAFC',
+                            color: isSelected ? '#FFFFFF' : '#334155',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {formatINR(amt)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Contributor Name */}
