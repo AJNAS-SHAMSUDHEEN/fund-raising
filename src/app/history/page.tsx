@@ -43,75 +43,47 @@ export default function HistoryPage() {
   const [offers, setOffers] = useState<UserOfferItem[]>([]);
   const [donations, setDonations] = useState<UserDonationItem[]>([]);
 
-  // Read stored offers and donations from localStorage or live Firestore
+  // Read stored offers and donations authoritatively from Firestore
   useEffect(() => {
-    try {
-      const cleanSessionPhone = (session.phone || '').replace(/\D/g, '').slice(-10);
+    const cleanSessionPhone = (session.phone || '').replace(/\D/g, '').slice(-10);
 
-      const storedOffers = localStorage.getItem('masjid_user_offers');
-      if (storedOffers && cleanSessionPhone) {
-        const parsed = JSON.parse(storedOffers);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const matching = parsed.filter((o: any) => {
-            const oPhone = (o.contributorPhone || o.phone || '').replace(/\D/g, '').slice(-10);
-            return oPhone === cleanSessionPhone;
-          });
-          setOffers(matching);
-        } else {
+    if (cleanSessionPhone) {
+      // Live sync from Firestore
+      fetchUserContributionsFromFirebase(cleanSessionPhone)
+        .then(({ offers: remoteOffers, cashList: remoteCash }) => {
+          if (remoteOffers && remoteOffers.length > 0) {
+            const mapped: UserOfferItem[] = remoteOffers.map((ro: any) => ({
+              id: ro.id,
+              offerType: ro.offerType || 'cash',
+              quantity: ro.quantity || 1,
+              totalOfferedPaise: Number(ro.totalOfferedPaise) || 0,
+              paidPaise: Number(ro.paidPaise) || 0,
+              date: ro.createdAt?.toDate ? ro.createdAt.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
+            }));
+            setOffers(mapped);
+          } else {
+            setOffers([]);
+          }
+          if (remoteCash && remoteCash.length > 0) {
+            const mappedCash: UserDonationItem[] = remoteCash.map((rc: any) => ({
+              id: rc.id,
+              receiptId: rc.receiptNumber || rc.id,
+              amountPaise: Number(rc.amountPaise) || 0,
+              offerType: rc.offerType || 'cash',
+              quantity: rc.quantity || 1,
+              date: rc.createdAt?.toDate ? rc.createdAt.toDate().toLocaleDateString('en-IN') : 'Recent',
+              method: 'CASH',
+            }));
+            setDonations(mappedCash);
+          } else {
+            setDonations([]);
+          }
+        })
+        .catch((err) => {
+          console.warn('History fetch error:', err);
           setOffers([]);
-        }
-      } else {
-        setOffers([]);
-      }
-
-      const storedDonations = localStorage.getItem('masjid_user_donations');
-      if (storedDonations && cleanSessionPhone) {
-        const parsed = JSON.parse(storedDonations);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const matching = parsed.filter((d: any) => {
-            const dPhone = (d.phone || d.contributorPhone || '').replace(/\D/g, '').slice(-10);
-            return dPhone === cleanSessionPhone;
-          });
-          setDonations(matching);
-        } else {
           setDonations([]);
-        }
-      } else {
-        setDonations([]);
-      }
-    } catch (e) {}
-
-    // Live sync from Firestore if phone exists
-    if (session.phone) {
-      fetchUserContributionsFromFirebase(session.phone).then(({ offers: remoteOffers, cashList: remoteCash }) => {
-        if (remoteOffers && remoteOffers.length > 0) {
-          const mapped: UserOfferItem[] = remoteOffers.map((ro: any) => ({
-            id: ro.id,
-            offerType: ro.offerType || 'cash',
-            quantity: ro.quantity || 1,
-            totalOfferedPaise: ro.totalOfferedPaise || 0,
-            paidPaise: ro.paidPaise || 0,
-            date: ro.createdAt?.toDate ? ro.createdAt.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
-          }));
-          setOffers(mapped);
-        } else {
-          setOffers([]);
-        }
-        if (remoteCash && remoteCash.length > 0) {
-          const mappedCash: UserDonationItem[] = remoteCash.map((rc: any) => ({
-            id: rc.id,
-            receiptId: rc.receiptNumber || rc.id,
-            amountPaise: rc.amountPaise || 0,
-            offerType: rc.offerType || 'cash',
-            quantity: rc.quantity || 1,
-            date: rc.createdAt?.toDate ? rc.createdAt.toDate().toLocaleDateString('en-IN') : 'Recent',
-            method: 'CASH',
-          }));
-          setDonations(mappedCash);
-        } else {
-          setDonations([]);
-        }
-      }).catch(() => {});
+        });
     } else {
       setOffers([]);
       setDonations([]);

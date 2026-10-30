@@ -429,12 +429,13 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
     console.warn('Firebase getDonorHistoryByPhone query fallback:', err);
   }
 
-  // 2. Also check local storage fallback (for offline or local session)
-  if (typeof window !== 'undefined') {
+  // 2. Only use local storage fallback if remote fetch returned 0 records (offline fallback, never accumulate with remote)
+  if (typeof window !== 'undefined' && result.offers.length === 0 && result.recentCashPayments.length === 0) {
     try {
       const localOffers = JSON.parse(localStorage.getItem('masjid_user_offers') || '[]');
       localOffers.forEach((lo: any) => {
-        if (!result.offers.some((o) => o.id === lo.id)) {
+        const loPhone = (lo.contributorPhone || lo.phone || '').replace(/\D/g, '').slice(-10);
+        if (loPhone === cleanPhone && !result.offers.some((o) => o.id === lo.id)) {
           const total = Number(lo.totalOfferedPaise) || 0;
           const paid = Number(lo.paidPaise) || 0;
           result.totalOfferedPaise += total;
