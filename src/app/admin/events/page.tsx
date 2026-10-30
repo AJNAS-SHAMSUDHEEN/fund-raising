@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { INITIAL_EVENTS } from '@/lib/state/mockStore';
+import { collection, doc, setDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
 import { CampaignEvent } from '@/lib/types';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import EventQRCode from '@/components/common/EventQRCode';
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminEventsPage() {
-  const [events, setEvents] = useState<CampaignEvent[]>(INITIAL_EVENTS);
+  const [events, setEvents] = useState<CampaignEvent[]>([]);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedQR, setSelectedQR] = useState<{ id: string; name: string; url: string } | null>(null);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export default function AdminEventsPage() {
   const [eventName, setEventName] = useState('');
   const [eventLocation, setEventLocation] = useState('');
   const [targetRupees, setTargetRupees] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Host URL for generating absolute links
   const [origin, setOrigin] = useState('');
@@ -39,40 +41,82 @@ export default function AdminEventsPage() {
     }
   }, []);
 
+  // Real-time synchronization of Events from Firestore
+  useEffect(() => {
+    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: CampaignEvent[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            name: d.name || docSnap.id,
+            location: d.location || 'Venue',
+            totalOfferedPaise: d.totalOfferedPaise || 0,
+            totalVerifiedPaise: d.totalVerifiedPaise || 0,
+            offerCount: d.offerCount || 0,
+            verifiedCount: d.verifiedCount || 0,
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (d.createdAt || new Date().toISOString()),
+            isActive: d.isActive !== undefined ? d.isActive : true,
+          });
+        });
+        setEvents(list);
+      },
+      (err) => {
+        console.warn('Events query subscription error:', err);
+      }
+    );
+
+    return () => unsub();
+  }, []);
+
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedLink(key);
     setTimeout(() => setCopiedLink(null), 2500);
   };
 
-  const handleCreateEvent = (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventName.trim() || !eventLocation.trim()) return;
 
-    // Generate slug from event name
+    setIsSubmitting(true);
+
+    // Generate clean slug from event name
     const slug = eventName
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
-    const newEvent: CampaignEvent = {
-      id: slug || `event-${Date.now()}`,
+    const eventId = slug || `event-${Date.now()}`;
+
+    const newEventData = {
       name: eventName.trim(),
       location: eventLocation.trim(),
       totalOfferedPaise: 0,
       totalVerifiedPaise: 0,
       offerCount: 0,
       verifiedCount: 0,
-      createdAt: new Date().toISOString(),
       isActive: true,
+      createdAt: serverTimestamp(),
     };
 
-    setEvents([newEvent, ...events]);
-    setIsCreateOpen(false);
-    setEventName('');
-    setEventLocation('');
-    setTargetRupees('');
+    try {
+      // Save permanently to Firestore
+      await setDoc(doc(db, 'events', eventId), newEventData, { merge: true });
+      setIsCreateOpen(false);
+      setEventName('');
+      setEventLocation('');
+      setTargetRupees('');
+    } catch (err) {
+      console.error('Error saving event to Firestore:', err);
+      alert('Failed to save event to database. Please check connection and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
