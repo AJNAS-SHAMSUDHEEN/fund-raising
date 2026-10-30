@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, doc, query, orderBy, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, setDoc, query, orderBy, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
@@ -65,11 +65,42 @@ export default function CashVerificationPage() {
     );
 
     try {
-      await updateDoc(doc(db, 'cashCollections', id), {
+      const cashRef = doc(db, 'cashCollections', id);
+      const cashSnap = await getDoc(cashRef);
+
+      await updateDoc(cashRef, {
         status: 'verified',
         verifiedByName: verifierName,
         verifiedAt: serverTimestamp(),
       });
+
+      // Synchronize linked Offer status if this collection was for an offer
+      if (cashSnap.exists()) {
+        const cashData = cashSnap.data();
+        if (cashData.offerId && !cashData.offerId.startsWith('mock-') && !cashData.offerId.startsWith('off-')) {
+          try {
+            const offerRef = doc(db, 'offers', cashData.offerId);
+            const offerSnap = await getDoc(offerRef);
+            if (offerSnap.exists()) {
+              const offerData = offerSnap.data();
+              const currentPaid = Number(offerData.paidPaise || 0);
+              const totalOffered = Number(offerData.totalOfferedPaise || 0);
+              const newStatus = currentPaid >= totalOffered ? 'verified' : 'partial';
+
+              await setDoc(
+                offerRef,
+                {
+                  status: newStatus,
+                  updatedAt: serverTimestamp(),
+                },
+                { merge: true }
+              );
+            }
+          } catch (offerErr) {
+            console.warn('Error syncing offer status in verification approval:', offerErr);
+          }
+        }
+      }
     } catch (e) {
       console.warn('Firestore cash approve error:', e);
     }

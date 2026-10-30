@@ -311,20 +311,30 @@ export async function recordCashToFirebase(cashData: {
       createdAt: serverTimestamp(),
     });
 
-    // If linked to an offer, update paidPaise on that offer document
+    // If linked to an offer, update paidPaise and status on that offer document
     if (cashData.offerId && !cashData.offerId.startsWith('mock-') && !cashData.offerId.startsWith('off-')) {
       try {
         const offerRef = doc(db, 'offers', cashData.offerId);
-        await setDoc(
-          offerRef,
-          {
-            paidPaise: increment(cashData.amountPaise),
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true }
-        );
+        const offerSnap = await getDoc(offerRef);
+        if (offerSnap.exists()) {
+          const offerData = offerSnap.data();
+          const currentPaidPaise = Number(offerData.paidPaise || 0);
+          const totalOfferedPaise = Number(offerData.totalOfferedPaise || 0);
+          const newPaidPaise = currentPaidPaise + cashData.amountPaise;
+          const newStatus = newPaidPaise >= totalOfferedPaise ? 'verified' : 'partial';
+
+          await setDoc(
+            offerRef,
+            {
+              paidPaise: newPaidPaise,
+              status: newStatus,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
       } catch (e) {
-        console.warn('Could not increment offer paidPaise:', e);
+        console.warn('Could not update offer payment status:', e);
       }
     }
 
