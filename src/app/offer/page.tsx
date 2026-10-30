@@ -27,7 +27,8 @@ import {
   AlertCircle,
   HelpCircle,
   Handshake,
-  Heart
+  Heart,
+  FileText
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { submitOfferToFirebase } from '@/lib/firebase/db';
@@ -1688,6 +1689,16 @@ function OfferWorkflowContent() {
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Link
+                href={`/receipt/${submittedOffer.offerNumber}?donor=${encodeURIComponent(submittedOffer.contributorName)}&phone=${submittedOffer.contributorPhone}&amount=${submittedOffer.totalOfferedPaise}&type=${submittedOffer.offerType}&qty=${submittedOffer.quantity}&status=pledged`}
+                target="_blank"
+                className="btn btn-outline"
+                style={{ padding: '12px 20px', gap: '8px', color: '#B45309', borderColor: '#FDE68A', background: '#FFFBEB' }}
+              >
+                <FileText size={16} />
+                <span>View Offer Slip (വാഗ്ദാന സ്ലിപ്പ്)</span>
+              </Link>
+
               <button
                 type="button"
                 onClick={() => window.print()}

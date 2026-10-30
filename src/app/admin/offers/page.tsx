@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   Save,
   Check,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 
 interface MockTransaction {

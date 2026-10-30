@@ -541,8 +541,6 @@ export default function ReceiptPage() {
             </div>
           </div>
         </div>
-          </div>
-        </div>
 
         {/* Print Styles */}
         <style jsx global>{`

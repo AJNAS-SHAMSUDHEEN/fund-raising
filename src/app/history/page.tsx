@@ -24,6 +24,7 @@ interface UserOfferItem {
   totalOfferedPaise: number;
   paidPaise: number;
   date: string;
+  status?: string;
 }
 
 interface UserDonationItem {
@@ -58,6 +59,7 @@ export default function HistoryPage() {
               quantity: ro.quantity || 1,
               totalOfferedPaise: Number(ro.totalOfferedPaise) || 0,
               paidPaise: Number(ro.paidPaise) || 0,
+              status: ro.status || (Number(ro.paidPaise) >= Number(ro.totalOfferedPaise) && Number(ro.totalOfferedPaise) > 0 ? 'verified' : Number(ro.paidPaise) > 0 ? 'partial' : 'pledged'),
               date: ro.createdAt?.toDate ? ro.createdAt.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
             }));
             setOffers(mapped);
@@ -262,17 +264,39 @@ export default function HistoryPage() {
                       </div>
 
                       {/* Action Row */}
-                      {!isFullyPaid && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
+                        <Link
+                          href={`/receipt/${item.id}?donor=${encodeURIComponent(session.name || 'Well Wisher')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.totalOfferedPaise}&paid=${item.paidPaise || 0}&type=${item.offerType}&qty=${item.quantity}&status=${item.status || 'pledged'}`}
+                          target="_blank"
+                          className="btn btn-outline"
+                          style={{
+                            padding: '8px 14px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            borderRadius: '8px',
+                            color: isFullyPaid ? '#15803D' : '#B45309',
+                            borderColor: isFullyPaid ? '#86EFAC' : '#FDE68A',
+                            background: isFullyPaid ? '#F0FDF4' : '#FFFBEB',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <Receipt size={14} />
+                          <span>{isFullyPaid ? 'View Payment Receipt' : 'View Offer Slip (സ്ലിപ്പ്)'}</span>
+                        </Link>
+
+                        {!isFullyPaid && (
                           <a
                             href={`https://wa.me/919947748552?text=${encodeURIComponent(`Assalamu Alaikum, I would like to pay the balance of ₹${balancePaise / 100} for my offer (${item.quantity} ${item.offerType}) to Wisdom Islamic Organization Kuppam Unit (Salafi Masjid Project).`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
-                              padding: '10px 18px',
-                              fontSize: '0.88rem',
+                              padding: '8px 14px',
+                              fontSize: '0.82rem',
                               fontWeight: 700,
-                              borderRadius: '10px',
+                              borderRadius: '8px',
                               background: '#DCFCE7',
                               color: '#15803D',
                               border: '1px solid #86EFAC',
@@ -283,10 +307,10 @@ export default function HistoryPage() {
                             }}
                           >
                             <span>Pay Cash to Committee ({formatINRFromPaise(balancePaise)})</span>
-                            <ChevronRight size={16} />
+                            <ChevronRight size={14} />
                           </a>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   );
                 })}
