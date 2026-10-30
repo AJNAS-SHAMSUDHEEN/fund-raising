@@ -32,8 +32,6 @@ interface MockTransaction {
   quantity: number;
   amountPaise: number;
   paidPaise?: number;
-  commitmentType?: 'one_time' | 'installments';
-  commitmentMonths?: number;
   channel: PaymentMethod;
   status: OfferStatus;
   eventName: string;
@@ -41,78 +39,54 @@ interface MockTransaction {
   date: string;
 }
 
-// Official-looking WhatsApp Icon
-function WhatsAppIcon({ size = 13, color = '#25D366' }: { size?: number; color?: string }) {
+// Official WhatsApp Brand Icon Component
+function WhatsAppIcon({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, color }}
-    >
-      <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2ZM12.05 20.15C10.57 20.15 9.12 19.75 7.85 19L7.55 18.82L4.43 19.64L5.26 16.6L5.06 16.29C4.24 14.99 3.8 13.47 3.8 11.91C3.8 7.37 7.5 3.67 12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.05 20.15ZM16.57 14.33C16.32 14.21 15.1 13.61 14.88 13.52C14.65 13.44 14.48 13.4 14.32 13.65C14.15 13.9 13.68 14.45 13.54 14.62C13.39 14.78 13.25 14.8 13 14.68C12.75 14.55 11.95 14.29 11 13.44C10.26 12.78 9.76 11.97 9.61 11.72C9.47 11.47 9.59 11.34 9.72 11.21C9.83 11.1 9.97 10.92 10.09 10.78C10.22 10.64 10.26 10.53 10.34 10.37C10.42 10.2 10.38 10.06 10.32 9.94C10.26 9.81 9.77 8.61 9.56 8.11C9.36 7.63 9.16 7.69 9 7.69C8.86 7.68 8.7 7.68 8.53 7.68C8.36 7.68 8.09 7.74 7.87 7.99C7.64 8.24 7 8.84 7 10.06C7 11.28 7.89 12.45 8.01 12.62C8.14 12.78 9.75 15.27 12.23 16.34C12.82 16.59 13.28 16.74 13.64 16.86C14.23 17.05 14.77 17.02 15.2 16.96C15.68 16.89 16.67 16.36 16.88 15.77C17.08 15.18 17.08 14.68 17.02 14.57C16.96 14.47 16.82 14.45 16.57 14.33Z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M17.472 14.382c-.301-.15-1.78-.879-2.056-.98-.276-.1-.476-.15-.677.15-.2.301-.777.98-.952 1.18-.176.201-.351.226-.652.076-.301-.15-1.272-.469-2.424-1.496-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.135-.135.301-.351.451-.527.151-.176.201-.301.301-.502.1-.201.05-.376-.025-.526-.075-.15-.677-1.631-.927-2.233-.244-.587-.492-.507-.677-.517l-.577-.01c-.2 0-.527.075-.802.376s-1.053 1.028-1.053 2.508c0 1.48 1.078 2.91 1.228 3.111.15.201 2.122 3.24 5.14 4.544.718.31 1.278.496 1.716.635.722.23 1.378.197 1.9.12.581-.087 1.78-.727 2.03-1.43.25-.703.25-1.305.176-1.43-.075-.126-.276-.201-.577-.351zM12.04 2C6.54 2 2.08 6.46 2.08 11.96c0 1.92.54 3.71 1.48 5.23L2 22l4.98-1.51c1.47.88 3.19 1.41 5.06 1.41 5.5 0 9.96-4.46 9.96-9.94C22 6.46 17.54 2 12.04 2zm0 18.23c-1.66 0-3.21-.49-4.52-1.35l-.32-.21-2.96.9.92-2.88-.23-.36c-.95-1.35-1.49-2.97-1.49-4.7 0-4.55 3.7-8.25 8.28-8.25 4.57 0 8.28 3.7 8.28 8.25 0 4.55-3.71 8.2-8.28 8.2z" />
     </svg>
   );
 }
 
-// Sanitize phone number for WhatsApp Click-to-Chat (wa.me)
-function getCleanWhatsAppPhone(phone: string): string {
-  const digits = (phone || '').replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.length === 10) return `91${digits}`;
-  if (digits.length === 12 && digits.startsWith('91')) return digits;
-  if (digits.length === 11 && digits.startsWith('0')) return `91${digits.slice(1)}`;
-  return digits;
-}
+// Generate Personalized Official WhatsApp Reminder URL
+function getWhatsAppReminderUrl(item: MockTransaction): string | null {
+  const cleanPhone = (item.phone || '').replace(/\D/g, '').slice(-10);
+  if (!cleanPhone || cleanPhone.length !== 10) return null;
 
-// Generate dynamic personalized Malayalam reminder message
-function generateWhatsAppReminderMessage(item: MockTransaction): string {
-  const contributorName =
-    item.contributorName && item.contributorName.trim() !== 'Well Wisher'
-      ? item.contributorName.trim()
-      : 'സഹോദരാ / സഹോദരി';
+  const contributorName = item.contributorName?.trim() || 'സുഹൃത്തേ';
+  const masjidName = 'സലഫി മസ്ജിദ് കുപ്പം';
+  const offeredAmount = formatINRFromPaise(item.amountPaise);
 
-  const offeredAmountINR = (item.amountPaise / 100).toLocaleString('en-IN');
-  const paidPaise = item.paidPaise || 0;
-  const isPartial = paidPaise > 0 && paidPaise < item.amountPaise;
+  const message =
+`السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
 
-  let partialText = '';
-  if (isPartial) {
-    const paidINR = (paidPaise / 100).toLocaleString('en-IN');
-    const balanceINR = ((item.amountPaise - paidPaise) / 100).toLocaleString('en-IN');
-    partialText = `\n(ഇതിൽ ₹${paidINR} ഇതിനകം ലഭിച്ചിട്ടുണ്ട്. ബാക്കി നൽകാനുള്ള തുക: ₹${balanceINR}).`;
-  }
+പ്രിയപ്പെട്ട ${contributorName},
 
-  let commitmentText = '';
-  if (item.commitmentMonths && item.commitmentMonths > 1) {
-    commitmentText = `ഈ തുക ${item.commitmentMonths} മാസത്തിനുള്ളിൽ നൽകാമെന്നാണ് താങ്കൾ അറിയിച്ചിരുന്നത്.`;
-  } else if (item.commitmentType === 'one_time') {
-    commitmentText = `ഈ തുക ഒറ്റത്തവണയായി നൽകാമെന്നാണ് താങ്കൾ അറിയിച്ചിരുന്നത്.`;
-  } else if (item.commitmentMonths === 1) {
-    commitmentText = `ഈ തുക 1 മാസത്തിനുള്ളിൽ നൽകാമെന്നാണ് താങ്കൾ അറിയിച്ചിരുന്നത്.`;
-  } else {
-    commitmentText = `ഈ തുക താങ്കൾ അറിയിച്ച സമയപരിധിക്കുള്ളിൽ നൽകാമെന്ന് പ്രതീക്ഷിക്കുന്നു.`;
-  }
+നമ്മുടെ ${masjidName}-ന്റെ ഭൂമി ഏറ്റെടുക്കൽ പദ്ധതിയിലേക്ക് താങ്കൾ ${offeredAmount} സംഭാവനയായി നൽകാമെന്ന് വാഗ്ദാനം ചെയ്തത് സ്നേഹപൂർവ്വം ഓർമ്മപ്പെടുത്തുന്നതിനായാണ് ഈ സന്ദേശം അയക്കുന്നത്.
 
-  return (
-    `Assalamu Alaikum wa Rahmatullahi wa Barakatuh,\n\n` +
-    `പ്രിയപ്പെട്ട ${contributorName},\n\n` +
-    `നമ്മുടെ സലഫി മസ്ജിദ് കുപ്പത്തിന്റെ പ്രവർത്തനത്തിനായി താങ്കൾ ${offeredAmountINR} രൂപ സംഭാവനയായി നൽകാമെന്ന് വാഗ്ദാനം ചെയ്തിരുന്നു.${partialText}\n\n` +
-    `${commitmentText}\n\n` +
-    `താങ്കളുടെ ഈ വാഗ്ദാനം സ്നേഹപൂർവ്വം ഓർമ്മപ്പെടുത്തുന്നതിനായാണ് ഈ സന്ദേശം അയക്കുന്നത്.\n\n` +
-    `സൗകര്യപ്പെടുന്ന സമയത്ത് താങ്കളുടെ വാഗ്ദാനം നിറവേറ്റാൻ ശ്രദ്ധിക്കുമല്ലോ.\n\n` +
-    `അല്ലാഹു താങ്കളുടെ സഹായവും സൽപ്രവർത്തനങ്ങളും സ്വീകരിക്കുമാറാകട്ടെ. ആമീൻ.\n\n` +
-    `നന്ദി,\n` +
-    `സലഫി മസ്ജിദ് കുപ്പം അഡ്മിൻ ടീം`
-  );
+സൗകര്യപ്പെടുന്ന സമയത്ത് താങ്കളുടെ വാഗ്ദാനം നിറവേറ്റാൻ ശ്രദ്ധിക്കുമല്ലോ.
+
+താങ്കളുടെ ഓഫർ വിവരങ്ങൾ കാണാനും പേയ്മെന്റ് നൽകാനും താഴെയുള്ള ലിങ്ക് ഉപയോഗിക്കാം.
+
+🔗 Payment Link:
+https://kuppam-collection.vercel.app
+
+അല്ലാഹു താങ്കളുടെ സൽപ്രവർത്തനങ്ങൾ സ്വീകരിക്കുമാറാകട്ടെ. 🤲🏻
+
+ആമീൻ.
+
+പ്രാർത്ഥനയോടെ,
+
+${masjidName}
+അഡ്മിൻ ടീം`;
+
+  return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
 }
 
 const MOCK_TRANSACTIONS: MockTransaction[] = [];
 
 export default function OffersLedgerPage() {
   const [transactions, setTransactions] = useState<MockTransaction[]>(MOCK_TRANSACTIONS);
-  const [sentReminderIds, setSentReminderIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -158,8 +132,6 @@ export default function OffersLedgerPage() {
               quantity: d.quantity || 1,
               amountPaise: d.totalOfferedPaise || 0,
               paidPaise: d.paidPaise || 0,
-              commitmentType: d.commitmentType || 'one_time',
-              commitmentMonths: d.commitmentMonths || 1,
               channel: 'ONLINE',
               status: d.status || 'pledged',
               eventName: d.eventName || 'General Campaign',
@@ -547,79 +519,78 @@ export default function OffersLedgerPage() {
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <strong style={{ color: 'var(--brand-900)', display: 'block' }}>{item.contributorName}</strong>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
                         <small style={{ color: 'var(--text-muted)' }}>
                           {item.phone ? `+91 ${item.phone}` : 'No phone'}
                           {item.place ? ` • 📍 ${item.place}` : ''}
                         </small>
 
-                        {/* WhatsApp Reminder Button */}
+                        {/* Personalized Official WhatsApp Reminder Button */}
                         {(() => {
-                          const isFullyPaid =
-                            item.status === 'verified' ||
-                            ((item.paidPaise || 0) >= item.amountPaise && item.amountPaise > 0);
-                          const isCancelled = item.status === 'cancelled';
-                          if (isFullyPaid || isCancelled) return null;
+                          const isEligible = item.status !== 'verified' && item.status !== 'cancelled';
+                          const waUrl = getWhatsAppReminderUrl(item);
 
-                          const cleanPhone = getCleanWhatsAppPhone(item.phone);
-                          const hasValidPhone = cleanPhone.length >= 10;
+                          if (!isEligible) {
+                            return null;
+                          }
 
-                          if (!hasValidPhone) {
+                          if (!waUrl) {
                             return (
                               <span
-                                title="ഫോൺ നമ്പർ ലഭ്യമല്ല (No valid mobile number for WhatsApp reminder)"
+                                title="Cannot send WhatsApp: invalid or missing phone number"
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '2px 7px',
+                                  justifyContent: 'center',
+                                  padding: '3px 6px',
                                   borderRadius: '6px',
                                   background: '#F1F5F9',
-                                  border: '1px solid #E2E8F0',
                                   color: '#94A3B8',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 600,
                                   cursor: 'not-allowed',
-                                  opacity: 0.7,
+                                  fontSize: '0.72rem',
+                                  marginLeft: '4px',
                                 }}
                               >
                                 <WhatsAppIcon size={13} color="#94A3B8" />
-                                <span>No Phone</span>
                               </span>
                             );
                           }
 
-                          const isSent = sentReminderIds.has(item.id);
-
                           return (
                             <a
-                              href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                                generateWhatsAppReminderMessage(item)
-                              )}`}
+                              href={waUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              title={`Send WhatsApp reminder to ${item.contributorName} (+${cleanPhone})`}
-                              onClick={() => {
-                                setSentReminderIds((prev) => new Set(prev).add(item.id));
-                              }}
+                              title={`Send official WhatsApp reminder to ${item.contributorName} for ${formatINRFromPaise(item.amountPaise)}`}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
-                                padding: '2px 8px',
+                                padding: '2px 7px',
                                 borderRadius: '6px',
-                                background: isSent ? '#F0FDF4' : '#ECFDF5',
-                                border: `1px solid ${isSent ? '#16A34A' : '#86EFAC'}`,
+                                background: '#DCFCE7',
+                                border: '1px solid #86EFAC',
                                 color: '#15803D',
                                 fontSize: '0.72rem',
                                 fontWeight: 700,
                                 textDecoration: 'none',
-                                cursor: 'pointer',
                                 transition: 'all 0.15s ease',
+                                marginLeft: '4px',
+                                cursor: 'pointer',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#25D366';
+                                e.currentTarget.style.color = '#FFFFFF';
+                                e.currentTarget.style.borderColor = '#16A34A';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#DCFCE7';
+                                e.currentTarget.style.color = '#15803D';
+                                e.currentTarget.style.borderColor = '#86EFAC';
                               }}
                             >
-                              <WhatsAppIcon size={13} color="#16A34A" />
-                              <span>{isSent ? 'Sent' : 'Reminder'}</span>
+                              <WhatsAppIcon size={12} color="currentColor" />
+                              <span>Remind</span>
                             </a>
                           );
                         })()}
