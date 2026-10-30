@@ -58,9 +58,9 @@ function getWhatsAppReminderUrl(item: MockTransaction): string | null {
   const offeredAmount = formatINRFromPaise(item.amountPaise);
 
   const message =
-`السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
+    `السَّلَامُ عَلَيْكُمْ وَرَحْمَةُ اللَّهِ وَبَرَكَاتُهُ
 
-പ്രിയപ്പെട്ട ${contributorName},
+ബഹുമാനപ്പെട്ട ${contributorName},
 
 നമ്മുടെ ${masjidName}-ന്റെ ഭൂമി ഏറ്റെടുക്കൽ പദ്ധതിയിലേക്ക് താങ്കൾ ${offeredAmount} സംഭാവനയായി നൽകാമെന്ന് വാഗ്ദാനം ചെയ്തത് സ്നേഹപൂർവ്വം ഓർമ്മപ്പെടുത്തുന്നതിനായാണ് ഈ സന്ദേശം അയക്കുന്നത്.
 
@@ -138,10 +138,10 @@ export default function OffersLedgerPage() {
               eventId: d.eventId || 'general',
               date: d.createdAt?.toDate
                 ? d.createdAt.toDate().toLocaleDateString('en-IN', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
                 : 'Recent',
             });
           });
@@ -215,16 +215,16 @@ export default function OffersLedgerPage() {
         prev.map((item) =>
           item.id === editingOffer.id
             ? {
-                ...item,
-                contributorName: editName.trim() || 'Well Wisher',
-                phone: cleanPhone,
-                offerType: editType,
-                quantity: Math.max(1, editQuantity),
-                amountPaise: newAmountPaise,
-                status: editStatus,
-                eventName: editEventName,
-                eventId: eventId,
-              }
+              ...item,
+              contributorName: editName.trim() || 'Well Wisher',
+              phone: cleanPhone,
+              offerType: editType,
+              quantity: Math.max(1, editQuantity),
+              amountPaise: newAmountPaise,
+              status: editStatus,
+              eventName: editEventName,
+              eventId: eventId,
+            }
             : item
         )
       );
@@ -653,14 +653,73 @@ export default function OffersLedgerPage() {
                       {item.date}
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <a
-                        href={`/receipt/RCP-2026-000101?donor=${encodeURIComponent(item.contributorName)}&phone=${item.phone}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}`}
-                        target="_blank"
-                        title="View Official Receipt"
-                        style={{ color: 'var(--brand-800)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <ExternalLink size={16} />
-                      </a>
+                      {item.status === 'verified' ? (
+                        <a
+                          href={`/receipt/${item.orderNumber}?donor=${encodeURIComponent(item.contributorName)}&phone=${item.phone}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}&status=verified`}
+                          target="_blank"
+                          title="View Official Payment Receipt"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            background: '#EFF6FF',
+                            color: '#1D4ED8',
+                            border: '1px solid #BFDBFE',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <Receipt size={13} />
+                          <span>Receipt</span>
+                        </a>
+                      ) : item.status === 'partial' ? (
+                        <a
+                          href={`/receipt/${item.orderNumber}?donor=${encodeURIComponent(item.contributorName)}&phone=${item.phone}&amount=${item.amountPaise}&paid=${item.paidPaise || 0}&type=${item.offerType}&qty=${item.quantity}&status=partial`}
+                          target="_blank"
+                          title="View Partial Payment Receipt"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            background: '#F0FDF4',
+                            color: '#15803D',
+                            border: '1px solid #86EFAC',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <Receipt size={13} />
+                          <span>Partial</span>
+                        </a>
+                      ) : (
+                        <a
+                          href={`/receipt/${item.orderNumber}?donor=${encodeURIComponent(item.contributorName)}&phone=${item.phone}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}&status=pledged`}
+                          target="_blank"
+                          title="View Official Offer Slip"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            background: '#FFFBEB',
+                            color: '#B45309',
+                            border: '1px solid #FDE68A',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <FileText size={13} />
+                          <span>Offer Slip</span>
+                        </a>
+                      )}
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
