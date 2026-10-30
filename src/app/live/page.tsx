@@ -3,7 +3,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { INITIAL_CAMPAIGN, INITIAL_AGGREGATES, INITIAL_EVENTS } from '@/lib/state/mockStore';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
+import { INITIAL_CAMPAIGN, INITIAL_AGGREGATES } from '@/lib/state/mockStore';
+import { CampaignEvent } from '@/lib/types';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import BrandLogo from '@/components/common/BrandLogo';
 import EventQRCode from '@/components/common/EventQRCode';
@@ -43,16 +46,38 @@ function LiveScreenContent() {
   const [overallTotalVerifiedPaise, setOverallTotalVerifiedPaise] = useState(INITIAL_AGGREGATES.totalVerifiedPaise);
 
   // 2. Event-Specific Collection Totals (Big Display - Starts at ₹0 for each new event!)
-  const foundEvent = INITIAL_EVENTS.find((e) => e.id === eventParam);
+  const [eventsList, setEventsList] = useState<CampaignEvent[]>([]);
   const [eventName, setEventName] = useState<string>(
-    foundEvent?.name || (eventParam === 'general' ? 'Salafi Masjid Land Project' : `${eventParam.charAt(0).toUpperCase() + eventParam.slice(1)} Event`)
+    eventParam === 'general' ? 'Salafi Masjid Land Project' : 'Event Venue'
   );
   const [eventLocation, setEventLocation] = useState<string>(
-    foundEvent?.location || (eventParam === 'general' ? 'Kuppam Unit' : 'Event Venue')
+    eventParam === 'general' ? 'Kuppam Unit' : 'Event Venue'
   );
   const [eventOfferedPaise, setEventOfferedPaise] = useState<number>(0);
   const [eventVerifiedPaise, setEventVerifiedPaise] = useState<number>(0);
   const [eventOfferCount, setEventOfferCount] = useState<number>(0);
+
+  // Load actual events from Firestore
+  useEffect(() => {
+    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const list: CampaignEvent[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...(d.data() as any) });
+      });
+      setEventsList(list);
+
+      if (eventParam !== 'general') {
+        const found = list.find((e) => e.id === eventParam);
+        if (found) {
+          setEventName(found.name);
+          setEventLocation(found.location);
+        }
+      }
+    }, (err) => console.warn('Live events fetch error:', err));
+
+    return () => unsub();
+  }, [eventParam]);
 
   // Update URL and state when event changes
   const switchEvent = (eventId: string, name: string, location: string) => {
@@ -258,7 +283,7 @@ function LiveScreenContent() {
                 {selectedEventId === 'general' && <Check size={16} />}
               </button>
 
-              {INITIAL_EVENTS.map((ev) => (
+              {eventsList.map((ev) => (
                 <button
                   key={ev.id}
                   type="button"

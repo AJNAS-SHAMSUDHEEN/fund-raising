@@ -53,17 +53,8 @@ interface AdminAuthContextType {
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined);
 
-// Initial fallback volunteer for quick counter testing
-const DEFAULT_VOLUNTEERS: VolunteerStaff[] = [
-  {
-    id: 'vol-default-1',
-    name: 'Counter Volunteer 1',
-    phone: '9947748552',
-    pin: '4855',
-    assignedVenue: 'Kuppam Unit Gathering',
-    createdAt: new Date().toISOString(),
-  },
-];
+// Initial empty volunteer state
+const DEFAULT_VOLUNTEERS: VolunteerStaff[] = [];
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);

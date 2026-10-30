@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { INITIAL_CAMPAIGN, INITIAL_AGGREGATES, INITIAL_CASH_COLLECTIONS, INITIAL_EVENTS } from '@/lib/state/mockStore';
-import { CampaignAggregates } from '@/lib/types';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
+import { INITIAL_CAMPAIGN, INITIAL_AGGREGATES } from '@/lib/state/mockStore';
+import { CampaignAggregates, CampaignEvent, CashCollection } from '@/lib/types';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import { subscribeToCampaignAggregates } from '@/lib/firebase/db';
 import {
@@ -21,10 +23,13 @@ import {
 
 export default function AdminOverviewPage() {
   const [aggregates, setAggregates] = useState<CampaignAggregates>(INITIAL_AGGREGATES);
+  const [events, setEvents] = useState<CampaignEvent[]>([]);
+  const [recentCash, setRecentCash] = useState<CashCollection[]>([]);
+  const [pendingVerificationCount, setPendingVerificationCount] = useState<number>(0);
   const campaign = INITIAL_CAMPAIGN;
 
   useEffect(() => {
-    const unsub = subscribeToCampaignAggregates((data) => {
+    const unsubAgg = subscribeToCampaignAggregates((data) => {
       setAggregates((prev) => ({
         ...prev,
         totalVerifiedPaise: data.totalVerifiedPaise || prev.totalVerifiedPaise,
@@ -34,7 +39,49 @@ export default function AdminOverviewPage() {
         totalMusallaUnits: data.musallaCount || prev.totalMusallaUnits,
       }));
     });
-    return () => unsub();
+
+    // Real-time events from Firestore
+    const eventsQuery = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const unsubEvents = onSnapshot(eventsQuery, (snap) => {
+      const list: CampaignEvent[] = [];
+      snap.forEach((d) => {
+        list.push({ id: d.id, ...(d.data() as any) });
+      });
+      setEvents(list);
+    }, (err) => console.warn('Events snapshot error:', err));
+
+    // Real-time cash collections from Firestore
+    const cashQuery = query(collection(db, 'cashCollections'), orderBy('createdAt', 'desc'), limit(10));
+    const unsubCash = onSnapshot(cashQuery, (snap) => {
+      const list: CashCollection[] = [];
+      let pendingCount = 0;
+      snap.forEach((d) => {
+        const data = d.data() as any;
+        if (data.status === 'pending_verification') pendingCount++;
+        list.push({
+          id: d.id,
+          receiptNumber: data.receiptNumber || d.id,
+          offerId: data.offerId || '',
+          contributorId: data.contributorId || '',
+          contributorName: data.contributorName || 'Well Wisher',
+          contributorPhone: data.contributorPhone || '',
+          amountPaise: data.amountPaise || 0,
+          offerType: data.offerType || 'cash',
+          quantity: data.quantity || 1,
+          collectorUid: data.collectorUid || '',
+          collectorName: data.collectorName || 'Collector',
+          status: data.status || 'verified',
+        } as any);
+      });
+      setRecentCash(list);
+      setPendingVerificationCount(pendingCount);
+    }, (err) => console.warn('Cash snapshot error:', err));
+
+    return () => {
+      unsubAgg();
+      unsubEvents();
+      unsubCash();
+    };
   }, []);
 
   const percentage = Math.min(
@@ -80,7 +127,7 @@ export default function AdminOverviewPage() {
             style={{ padding: '10px 16px', fontSize: '0.88rem', gap: '6px' }}
           >
             <Clock size={16} color="var(--status-warning)" />
-            <span>Pending Verifications ({INITIAL_CASH_COLLECTIONS.filter(c => c.status === 'pending_verification').length})</span>
+            <span>Pending Verifications ({pendingVerificationCount})</span>
           </Link>
 
           <Link
@@ -358,7 +405,7 @@ export default function AdminOverviewPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '14px',
         }}>
-          {INITIAL_EVENTS.length === 0 ? (
+          {events.length === 0 ? (
             <div style={{
               gridColumn: '1 / -1',
               padding: '24px',
@@ -380,7 +427,7 @@ export default function AdminOverviewPage() {
               </Link>
             </div>
           ) : (
-            INITIAL_EVENTS.map((ev) => (
+            events.map((ev) => (
               <div
                 key={ev.id}
                 style={{
@@ -494,43 +541,51 @@ export default function AdminOverviewPage() {
               </tr>
             </thead>
             <tbody>
-              {INITIAL_CASH_COLLECTIONS.map((c) => (
-                <tr key={c.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--brand-900)' }}>
-                    {c.receiptNumber}
-                  </td>
-                  <td style={{ padding: '14px 20px' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--brand-900)' }}>{c.contributorName || 'Well Wisher'}</div>
-                    <small style={{ color: 'var(--text-muted)' }}>+91 {c.contributorPhone}</small>
-                  </td>
-                  <td style={{ padding: '14px 20px', textTransform: 'capitalize' }}>
-                    {c.quantity} {c.offerType}
-                  </td>
-                  <td style={{ padding: '14px 20px', color: 'var(--text-muted)' }}>
-                    {c.collectorName}
-                  </td>
-                  <td style={{
-                    padding: '14px 20px',
-                    textAlign: 'right',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    color: 'var(--brand-900)',
-                  }}>
-                    {formatINRFromPaise(c.amountPaise)}
-                  </td>
-                  <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                    {c.status === 'verified' ? (
-                      <span className="badge badge-success">
-                        <CheckCircle2 size={12} /> Verified
-                      </span>
-                    ) : (
-                      <span className="badge" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning)' }}>
-                        <Clock size={12} /> Pending Verify
-                      </span>
-                    )}
+              {recentCash.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    ഇതുവരെ ക്യാഷ് എൻട്രികൾ രേഖപ്പെടുത്തിയിട്ടില്ല (No cash collections recorded yet).
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recentCash.map((c) => (
+                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                    <td style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--brand-900)' }}>
+                      {c.receiptNumber}
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--brand-900)' }}>{c.contributorName || 'Well Wisher'}</div>
+                      <small style={{ color: 'var(--text-muted)' }}>+91 {c.contributorPhone}</small>
+                    </td>
+                    <td style={{ padding: '14px 20px', textTransform: 'capitalize' }}>
+                      {c.quantity} {c.offerType}
+                    </td>
+                    <td style={{ padding: '14px 20px', color: 'var(--text-muted)' }}>
+                      {c.collectorName}
+                    </td>
+                    <td style={{
+                      padding: '14px 20px',
+                      textAlign: 'right',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      color: 'var(--brand-900)',
+                    }}>
+                      {formatINRFromPaise(c.amountPaise)}
+                    </td>
+                    <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                      {c.status === 'verified' ? (
+                        <span className="badge badge-success">
+                          <CheckCircle2 size={12} /> Verified
+                        </span>
+                      ) : (
+                        <span className="badge" style={{ background: 'var(--status-warning-bg)', color: 'var(--status-warning)' }}>
+                          <Clock size={12} /> Pending Verify
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

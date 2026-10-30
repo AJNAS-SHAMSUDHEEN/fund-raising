@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { collection, doc, query, orderBy, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAdminAuth } from '@/lib/state/adminAuth';
-import { INITIAL_CASH_COLLECTIONS } from '@/lib/state/mockStore';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import {
   CheckCircle2,
@@ -17,7 +16,7 @@ import {
 
 export default function CashVerificationPage() {
   const { adminUser } = useAdminAuth();
-  const [collections, setCollections] = useState(INITIAL_CASH_COLLECTIONS);
+  const [collections, setCollections] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'pending' | 'verified'>('pending');
 
   useEffect(() => {
@@ -26,18 +25,16 @@ export default function CashVerificationPage() {
       const unsub = onSnapshot(
         q,
         (snapshot) => {
-          if (!snapshot.empty) {
-            const list: any[] = [];
-            snapshot.forEach((docSnap) => {
-              const d = docSnap.data();
-              list.push({
-                id: docSnap.id,
-                ...d,
-                createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
-              });
+          const list: any[] = [];
+          snapshot.forEach((docSnap) => {
+            const d = docSnap.data();
+            list.push({
+              id: docSnap.id,
+              ...d,
+              createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
             });
-            setCollections(list);
-          }
+          });
+          setCollections(list);
         },
         (err) => {
           console.warn('Firestore cash collections subscription fallback:', err.message);
