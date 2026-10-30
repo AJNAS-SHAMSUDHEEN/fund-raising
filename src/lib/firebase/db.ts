@@ -312,10 +312,18 @@ export async function recordCashToFirebase(cashData: {
     });
 
     // If linked to an offer, update paidPaise and status on that offer document
-    if (cashData.offerId && !cashData.offerId.startsWith('mock-') && !cashData.offerId.startsWith('off-')) {
+    if (cashData.offerId && !cashData.offerId.startsWith('mock-')) {
       try {
-        const offerRef = doc(db, 'offers', cashData.offerId);
-        const offerSnap = await getDoc(offerRef);
+        let offerRef = doc(db, 'offers', cashData.offerId);
+        let offerSnap = await getDoc(offerRef);
+        if (!offerSnap.exists()) {
+          // Fallback if offerId was provided as the readable offerNumber (e.g. OFF-...)
+          const qSnap = await getDocs(query(collection(db, 'offers'), where('offerNumber', '==', cashData.offerId), limit(1)));
+          if (!qSnap.empty) {
+            offerSnap = qSnap.docs[0];
+            offerRef = offerSnap.ref;
+          }
+        }
         if (offerSnap.exists()) {
           const offerData = offerSnap.data();
           const currentPaidPaise = Number(offerData.paidPaise || 0);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, doc, getDoc, setDoc, query, orderBy, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, where, limit, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
@@ -77,10 +77,17 @@ export default function CashVerificationPage() {
       // Synchronize linked Offer status if this collection was for an offer
       if (cashSnap.exists()) {
         const cashData = cashSnap.data();
-        if (cashData.offerId && !cashData.offerId.startsWith('mock-') && !cashData.offerId.startsWith('off-')) {
+        if (cashData.offerId && !cashData.offerId.startsWith('mock-')) {
           try {
-            const offerRef = doc(db, 'offers', cashData.offerId);
-            const offerSnap = await getDoc(offerRef);
+            let offerRef = doc(db, 'offers', cashData.offerId);
+            let offerSnap = await getDoc(offerRef);
+            if (!offerSnap.exists()) {
+              const qSnap = await getDocs(query(collection(db, 'offers'), where('offerNumber', '==', cashData.offerId), limit(1)));
+              if (!qSnap.empty) {
+                offerSnap = qSnap.docs[0];
+                offerRef = offerSnap.ref;
+              }
+            }
             if (offerSnap.exists()) {
               const offerData = offerSnap.data();
               const currentPaid = Number(offerData.paidPaise || 0);

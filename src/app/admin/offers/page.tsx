@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { updateOfferInFirebase, deleteOfferFromFirebase } from '@/lib/firebase/db';
 import { OfferType, PaymentMethod, OfferStatus } from '@/lib/types';
@@ -123,6 +123,26 @@ export default function OffersLedgerPage() {
           const list: MockTransaction[] = [];
           snapshot.forEach((docSnap) => {
             const d = docSnap.data();
+            const total = Number(d.totalOfferedPaise) || 0;
+            const paid = Number(d.paidPaise) || 0;
+
+            // Authoritatively derive status from paid amount vs total offered
+            let computedStatus: OfferStatus = d.status || 'pledged';
+            if (computedStatus !== 'cancelled') {
+              if (paid >= total && total > 0) {
+                computedStatus = 'verified';
+              } else if (paid > 0 && paid < total) {
+                computedStatus = 'partial';
+              } else {
+                computedStatus = 'pledged';
+              }
+            }
+
+            // If status in database is outdated/desynchronized, self-heal in Firestore
+            if (d.status !== computedStatus && computedStatus !== 'cancelled') {
+              setDoc(doc(db, 'offers', docSnap.id), { status: computedStatus }, { merge: true }).catch(() => {});
+            }
+
             list.push({
               id: docSnap.id,
               orderNumber: d.offerNumber || docSnap.id.slice(0, 8),
@@ -131,10 +151,10 @@ export default function OffersLedgerPage() {
               place: d.contributorPlace || '',
               offerType: d.offerType || 'cash',
               quantity: d.quantity || 1,
-              amountPaise: d.totalOfferedPaise || 0,
-              paidPaise: d.paidPaise || 0,
+              amountPaise: total,
+              paidPaise: paid,
               channel: 'ONLINE',
-              status: d.status || 'pledged',
+              status: computedStatus,
               eventName: d.eventName || 'General Campaign',
               eventId: d.eventId || 'general',
               date: d.createdAt?.toDate
