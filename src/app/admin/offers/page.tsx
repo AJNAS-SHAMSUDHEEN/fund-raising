@@ -621,12 +621,23 @@ export default function OffersLedgerPage() {
                       fontWeight: 800,
                       color: 'var(--brand-900)',
                     }}>
-                      {formatINRFromPaise(item.amountPaise)}
+                      <div>{formatINRFromPaise(item.amountPaise)}</div>
+                      {item.paidPaise && item.paidPaise > 0 ? (
+                        <div style={{ fontSize: '0.74rem', fontWeight: 600, color: item.status === 'verified' ? '#15803D' : '#D97706', marginTop: '2px' }}>
+                          {item.status === 'verified'
+                            ? `Paid: ${formatINRFromPaise(item.paidPaise)}`
+                            : `Paid: ${formatINRFromPaise(item.paidPaise)} • Due: ${formatINRFromPaise(Math.max(0, item.amountPaise - item.paidPaise))}`}
+                        </div>
+                      ) : null}
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       {item.status === 'verified' ? (
                         <span className="badge badge-success">
-                          <CheckCircle2 size={12} /> Verified
+                          <CheckCircle2 size={12} /> Paid
+                        </span>
+                      ) : item.status === 'partial' ? (
+                        <span className="badge" style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+                          <Clock size={12} /> Partial
                         </span>
                       ) : item.status === 'cancelled' ? (
                         <span className="badge" style={{ background: '#FEE2E2', color: '#DC2626' }}>

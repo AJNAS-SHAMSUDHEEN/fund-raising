@@ -1,7 +1,7 @@
 export type OfferType = 'cash' | 'cent' | 'sqft' | 'musalla' | 'percentage' | 'custom';
 export type CommitmentType = 'one_time' | 'installments';
 export type PaymentMethod = 'ONLINE' | 'CASH';
-export type OfferStatus = 'pending' | 'verified' | 'failed' | 'cancelled' | 'refunded' | 'pledged';
+export type OfferStatus = 'pending' | 'verified' | 'failed' | 'cancelled' | 'refunded' | 'pledged' | 'partial';
 export type CashCollectionStatus = 'pending_verification' | 'verified' | 'rejected' | 'adjusted';
 export type AdminRole = 'super_admin' | 'collection_admin' | 'event_operator';
 

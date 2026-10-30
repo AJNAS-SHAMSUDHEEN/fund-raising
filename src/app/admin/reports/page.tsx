@@ -91,6 +91,13 @@ export default function AdminReportsPage() {
   const rawReportItems = useMemo<ReportItem[]>(() => {
     const list: ReportItem[] = [];
 
+    // Map of offers by ID and offerNumber for quick lookup
+    const offerMap = new Map<string, any>();
+    allOffers.forEach((o) => {
+      offerMap.set(o.id, o);
+      if (o.offerNumber) offerMap.set(o.offerNumber, o);
+    });
+
     // Map Offers
     allOffers.forEach((o) => {
       let time = Date.now();
@@ -107,6 +114,18 @@ export default function AdminReportsPage() {
         });
       }
 
+      const totalOffered = o.totalOfferedPaise || 0;
+      const paid = o.paidPaise || 0;
+      const remaining = Math.max(0, totalOffered - paid);
+      let derivedStatus = o.status || 'pledged';
+      if (derivedStatus !== 'cancelled') {
+        if (paid >= totalOffered && totalOffered > 0) {
+          derivedStatus = 'verified';
+        } else if (paid > 0 && paid < totalOffered) {
+          derivedStatus = 'partial';
+        }
+      }
+
       list.push({
         id: o.id,
         referenceNumber: o.offerNumber || `OFF-${o.id.substring(0, 6).toUpperCase()}`,
@@ -119,8 +138,10 @@ export default function AdminReportsPage() {
         category: o.offerType || 'cash',
         quantity: o.quantity || 1,
         collectorOrVenue: o.eventName || 'General Campaign',
-        status: o.status || 'pledged',
-        amountPaise: o.totalOfferedPaise || 0,
+        status: derivedStatus,
+        amountPaise: totalOffered,
+        paidPaise: paid,
+        remainingPaise: remaining,
       });
     });
 
@@ -140,6 +161,11 @@ export default function AdminReportsPage() {
         });
       }
 
+      const parentOffer = c.offerId ? offerMap.get(c.offerId) : null;
+      const linkedOfferRef = parentOffer
+        ? (parentOffer.offerNumber || `OFF-${parentOffer.id.substring(0, 6).toUpperCase()}`)
+        : (c.offerId ? c.offerId : undefined);
+
       list.push({
         id: c.id,
         referenceNumber: c.receiptNumber || `REC-${c.id.substring(0, 6).toUpperCase()}`,
@@ -147,12 +173,17 @@ export default function AdminReportsPage() {
         timestamp: time,
         contributorName: c.contributorName || 'Well Wisher',
         phone: c.contributorPhone || '',
+        place: c.contributorPlace || (parentOffer?.contributorPlace || ''),
         type: 'cash',
         category: c.offerType || 'cash',
         quantity: c.quantity || 1,
         collectorOrVenue: c.collectorName || c.venue || 'Counter Desk',
         status: c.status || 'verified',
         amountPaise: c.amountPaise || 0,
+        paidPaise: c.amountPaise || 0,
+        remainingPaise: 0,
+        linkedOfferId: c.offerId,
+        linkedOfferRef,
       });
     });
 
@@ -229,7 +260,8 @@ export default function AdminReportsPage() {
         const matchesPlace = item.place ? item.place.toLowerCase().includes(q) : false;
         const matchesRef = item.referenceNumber.toLowerCase().includes(q);
         const matchesCollector = item.collectorOrVenue.toLowerCase().includes(q);
-        if (!matchesName && !matchesPhone && !matchesPlace && !matchesRef && !matchesCollector) {
+        const matchesLinked = item.linkedOfferRef ? item.linkedOfferRef.toLowerCase().includes(q) : false;
+        if (!matchesName && !matchesPhone && !matchesPlace && !matchesRef && !matchesCollector && !matchesLinked) {
           return false;
         }
       }
@@ -242,6 +274,7 @@ export default function AdminReportsPage() {
   const reportSummary = useMemo<ReportSummary>(() => {
     let totalOfferedPaise = 0;
     let totalCollectedPaise = 0;
+    let totalCollectedForOffersPaise = 0;
     let offerCount = 0;
     let collectionCount = 0;
 
@@ -250,11 +283,33 @@ export default function AdminReportsPage() {
 
     filteredItems.forEach((item) => {
       if (item.type === 'offer') {
-        totalOfferedPaise += item.amountPaise;
-        offerCount++;
+        if (item.status !== 'cancelled') {
+          totalOfferedPaise += item.amountPaise;
+          offerCount++;
+
+          // Pledges define the category targets
+          const catKey = item.category || 'cash';
+          if (!categoryMap[catKey]) {
+            categoryMap[catKey] = { count: 0, amountPaise: 0 };
+          }
+          categoryMap[catKey].count += (item.quantity || 1);
+          categoryMap[catKey].amountPaise += item.amountPaise;
+        }
       } else if (item.type === 'cash') {
         totalCollectedPaise += item.amountPaise;
         collectionCount++;
+
+        if (item.linkedOfferRef || item.linkedOfferId) {
+          totalCollectedForOffersPaise += item.amountPaise;
+        } else {
+          // Direct counter walk-in donation without prior offer
+          const catKey = item.category || 'cash';
+          if (!categoryMap[catKey]) {
+            categoryMap[catKey] = { count: 0, amountPaise: 0 };
+          }
+          categoryMap[catKey].count += (item.quantity || 1);
+          categoryMap[catKey].amountPaise += item.amountPaise;
+        }
 
         // Volunteer breakdown
         const volKey = item.collectorOrVenue || 'Counter Desk';
@@ -264,21 +319,16 @@ export default function AdminReportsPage() {
         volunteerMap[volKey].count++;
         volunteerMap[volKey].amountPaise += item.amountPaise;
       }
-
-      // Category breakdown
-      const catKey = item.category || 'cash';
-      if (!categoryMap[catKey]) {
-        categoryMap[catKey] = { count: 0, amountPaise: 0 };
-      }
-      categoryMap[catKey].count++;
-      categoryMap[catKey].amountPaise += item.amountPaise;
     });
 
-    const remainingBalancePaise = Math.max(0, totalOfferedPaise - totalCollectedPaise);
+    // Reconciled Remaining Balance for pledges:
+    const remainingBalancePaise = Math.max(0, totalOfferedPaise - totalCollectedForOffersPaise);
     const collectionRate =
-      totalOfferedPaise > 0 ? (totalCollectedPaise / totalOfferedPaise) * 100 : 0;
+      totalOfferedPaise > 0 ? Math.min(100, (totalCollectedPaise / totalOfferedPaise) * 100) : 0;
 
-    const grandTotal = totalOfferedPaise + totalCollectedPaise;
+    // Total campaign commitment without double-counting pledges and payments
+    const directCashPaise = totalCollectedPaise - totalCollectedForOffersPaise;
+    const grandTotal = totalOfferedPaise + Math.max(0, directCashPaise);
 
     const categoryBreakdown = Object.entries(categoryMap).map(([category, val]) => ({
       category,
@@ -956,20 +1006,49 @@ export default function AdminReportsPage() {
                         {item.phone || '-'}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '3px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            background: isCash ? '#EEF2FF' : '#ECFDF5',
-                            color: isCash ? '#4338CA' : '#047857',
-                          }}
-                        >
-                          {isCash ? 'Cash Received' : 'Offer Pledged'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              width: 'fit-content',
+                              padding: '3px 8px',
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              background: isCash
+                                ? (item.linkedOfferRef ? '#EEF2FF' : '#F1F5F9')
+                                : item.status === 'verified'
+                                ? '#ECFDF5'
+                                : item.status === 'partial'
+                                ? '#EFF6FF'
+                                : '#FEF3C7',
+                              color: isCash
+                                ? (item.linkedOfferRef ? '#4338CA' : '#334155')
+                                : item.status === 'verified'
+                                ? '#047857'
+                                : item.status === 'partial'
+                                ? '#1D4ED8'
+                                : '#B45309',
+                            }}
+                          >
+                            {isCash ? (
+                              item.linkedOfferRef ? `Payment (Offer #${item.linkedOfferRef})` : 'Cash Received'
+                            ) : item.status === 'verified' ? (
+                              'Offer (Fully Paid)'
+                            ) : item.status === 'partial' ? (
+                              'Offer (Partially Paid)'
+                            ) : (
+                              'Offer Pledged'
+                            )}
+                          </span>
+                          {!isCash && (item.paidPaise ?? 0) > 0 && (
+                            <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                              Paid: {formatINRFromPaise(item.paidPaise || 0)}
+                              {(item.remainingPaise ?? 0) > 0 && ` • Due: ${formatINRFromPaise(item.remainingPaise || 0)}`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: '12px 16px', color: '#475569' }}>
                         {item.collectorOrVenue}

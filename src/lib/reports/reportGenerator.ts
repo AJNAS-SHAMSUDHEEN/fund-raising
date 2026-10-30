@@ -15,6 +15,10 @@ export interface ReportItem {
   collectorOrVenue: string;
   status: string;
   amountPaise: number;
+  paidPaise?: number;
+  remainingPaise?: number;
+  linkedOfferId?: string;
+  linkedOfferRef?: string;
 }
 
 export interface ReportFilterOptions {
@@ -281,12 +285,22 @@ export function generateCampaignPdf(
 
   const transactionRows = items.map((item) => {
     const isCash = item.type === 'cash';
+    let typeLabel = isCash ? 'Cash Received' : 'Offer Pledged';
+    if (isCash && item.linkedOfferRef) {
+      typeLabel = `Payment (Offer #${item.linkedOfferRef})`;
+    } else if (!isCash) {
+      if (item.status === 'verified') {
+        typeLabel = 'Offer (Fully Paid)';
+      } else if (item.status === 'partial') {
+        typeLabel = 'Offer (Partially Paid)';
+      }
+    }
     return [
       item.date,
       item.referenceNumber,
       item.contributorName,
       item.phone || '-',
-      isCash ? 'Cash Received' : 'Offer Pledged',
+      typeLabel,
       item.collectorOrVenue || 'Direct',
       formatINR(item.amountPaise),
     ];
@@ -388,6 +402,9 @@ export function exportReportToCsv(items: ReportItem[], fileName = 'Campaign_Tran
     'Collector / Desk',
     'Status',
     'Amount (Rs.)',
+    'Paid (Rs.)',
+    'Remaining (Rs.)',
+    'Linked Offer Ref',
   ];
 
   const rows = items.map((item) => [
@@ -401,6 +418,9 @@ export function exportReportToCsv(items: ReportItem[], fileName = 'Campaign_Tran
     `"${item.collectorOrVenue.replace(/"/g, '""')}"`,
     `"${item.status}"`,
     (item.amountPaise / 100).toFixed(2),
+    item.paidPaise !== undefined ? (item.paidPaise / 100).toFixed(2) : (item.type === 'cash' ? (item.amountPaise / 100).toFixed(2) : '0.00'),
+    item.remainingPaise !== undefined ? (item.remainingPaise / 100).toFixed(2) : '0.00',
+    `"${item.linkedOfferRef || ''}"`,
   ]);
 
   const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
