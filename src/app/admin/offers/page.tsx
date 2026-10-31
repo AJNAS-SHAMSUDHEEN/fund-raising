@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { updateOfferInFirebase, deleteOfferFromFirebase } from '@/lib/firebase/db';
-import { OfferType, PaymentMethod, OfferStatus } from '@/lib/types';
+import { OfferType, PaymentMethod, OfferStatus, ReceivingEntity } from '@/lib/types';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import {
   Receipt,
@@ -37,6 +37,8 @@ interface MockTransaction {
   status: OfferStatus;
   eventName: string;
   eventId?: string;
+  receivingEntity?: ReceivingEntity;
+  receivingEntityName?: string;
   date: string;
 }
 
@@ -127,6 +129,9 @@ export default function OffersLedgerPage() {
   const [editAmountINR, setEditAmountINR] = useState('');
   const [editEventName, setEditEventName] = useState('General Campaign');
   const [editStatus, setEditStatus] = useState<OfferStatus>('pledged');
+  const [editReceivingEntity, setEditReceivingEntity] = useState<ReceivingEntity>('unit');
+  const [editReceivingEntityName, setEditReceivingEntityName] = useState('');
+  const [receivingFilter, setReceivingFilter] = useState<'all' | 'unit' | 'district' | 'external'>('all');
 
   useEffect(() => {
     try {
@@ -175,6 +180,8 @@ export default function OffersLedgerPage() {
               status: computedStatus,
               eventName: d.eventName || 'General Campaign',
               eventId: d.eventId || 'general',
+              receivingEntity: d.receivingEntity || 'unit',
+              receivingEntityName: d.receivingEntityName || '',
               date: d.createdAt?.toDate
                 ? d.createdAt.toDate().toLocaleDateString('en-IN', {
                   day: '2-digit',
@@ -205,6 +212,8 @@ export default function OffersLedgerPage() {
     setEditAmountINR((offer.amountPaise / 100).toString());
     setEditEventName(offer.eventName || 'General Campaign');
     setEditStatus(offer.status || 'pledged');
+    setEditReceivingEntity(offer.receivingEntity || 'unit');
+    setEditReceivingEntityName(offer.receivingEntityName || '');
     setActionError(null);
   };
 
@@ -242,6 +251,8 @@ export default function OffersLedgerPage() {
           quantity: Math.max(1, editQuantity),
           totalOfferedPaise: newAmountPaise,
           status: editStatus as any,
+          receivingEntity: editReceivingEntity,
+          receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
           eventName: editEventName,
           eventId: eventId,
         },
@@ -261,6 +272,8 @@ export default function OffersLedgerPage() {
               quantity: Math.max(1, editQuantity),
               amountPaise: newAmountPaise,
               status: editStatus,
+              receivingEntity: editReceivingEntity,
+              receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
               eventName: editEventName,
               eventId: eventId,
             }
@@ -316,7 +329,9 @@ export default function OffersLedgerPage() {
     const matchesChannel = channelFilter === 'all' || item.channel === channelFilter;
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     const matchesEvent = eventFilter === 'all' || item.eventName === eventFilter;
-    return matchesSearch && matchesType && matchesChannel && matchesStatus && matchesEvent;
+    const itemEntity = item.receivingEntity || 'unit';
+    const matchesReceiving = receivingFilter === 'all' || itemEntity === receivingFilter;
+    return matchesSearch && matchesType && matchesChannel && matchesStatus && matchesEvent && matchesReceiving;
   });
 
   const exportCSV = () => {
@@ -503,6 +518,25 @@ export default function OffersLedgerPage() {
           ))}
         </select>
 
+        {/* Receiving Committee Filter */}
+        <select
+          value={receivingFilter}
+          onChange={(e) => setReceivingFilter(e.target.value as any)}
+          style={{
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-medium)',
+            fontSize: '0.88rem',
+            color: 'var(--brand-900)',
+            fontWeight: 600,
+          }}
+        >
+          <option value="all">🏛️ All Committees / Accounts</option>
+          <option value="unit">കുപ്പം യൂണിറ്റ് (Unit Only)</option>
+          <option value="district">ജില്ലാ കമ്മിറ്റി (District Committee)</option>
+          <option value="external">മറ്റ് എക്സ്റ്റേണൽ കമ്മിറ്റികൾ (External)</option>
+        </select>
+
         {/* Status Filter */}
         <select
           value={statusFilter}
@@ -639,18 +673,42 @@ export default function OffersLedgerPage() {
                       </div>
                     </td>
                     <td style={{ padding: '16px 20px' }}>
-                      <span style={{
-                        background: '#F0FDF4',
-                        color: '#15803D',
-                        fontWeight: 700,
-                        fontSize: '0.75rem',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid #BBF7D0',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        📍 {item.eventName}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{
+                          background: '#F0FDF4',
+                          color: '#15803D',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid #BBF7D0',
+                          whiteSpace: 'nowrap',
+                          width: 'fit-content',
+                        }}>
+                          📍 {item.eventName}
+                        </span>
+
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px 7px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            width: 'fit-content',
+                            background: item.receivingEntity === 'district' ? '#EFF6FF' : item.receivingEntity === 'external' ? '#FAF5FF' : '#F0FDF4',
+                            color: item.receivingEntity === 'district' ? '#1D4ED8' : item.receivingEntity === 'external' ? '#7E22CE' : '#15803D',
+                            border: item.receivingEntity === 'district' ? '1px solid #BFDBFE' : item.receivingEntity === 'external' ? '1px solid #E9D5FF' : '1px solid #BBF7D0',
+                          }}
+                        >
+                          {item.receivingEntity === 'district'
+                            ? '🏛️ ജില്ലാ കമ്മിറ്റി'
+                            : item.receivingEntity === 'external'
+                            ? `🌐 ${item.receivingEntityName || 'External'}`
+                            : '🏛️ കുപ്പം യൂണിറ്റ്'}
+                        </span>
+                      </div>
                     </td>
                     <td style={{ padding: '16px 20px', textTransform: 'capitalize' }}>
                       {item.quantity} {item.offerType}
@@ -1118,6 +1176,69 @@ export default function OffersLedgerPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Receiving Committee / Account */}
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '6px' }}>
+                  Received Into / സ്വീകരിച്ച അക്കൗണ്ട് (കമ്മിറ്റി)
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
+                  {[
+                    { id: 'unit' as ReceivingEntity, label: '🏛️ കുപ്പം യൂണിറ്റ്', desc: 'Unit Account', color: '#15803D' },
+                    { id: 'district' as ReceivingEntity, label: '🏛️ ജില്ലാ കമ്മിറ്റി', desc: 'District Account', color: '#0369A1' },
+                    { id: 'external' as ReceivingEntity, label: '🌐 എക്സ്റ്റേണൽ', desc: 'External Committee', color: '#7C3AED' },
+                  ].map((item) => {
+                    const isSelected = editReceivingEntity === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setEditReceivingEntity(item.id)}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          border: isSelected ? `2px solid ${item.color}` : '1px solid var(--border-medium)',
+                          background: isSelected ? '#FFFFFF' : 'var(--bg-secondary)',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '2px',
+                          boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isSelected ? item.color : '#1E293B' }}>
+                          {item.label}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                          {item.desc}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {editReceivingEntity === 'external' && (
+                  <div style={{ marginTop: '10px' }}>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#6D28D9', marginBottom: '4px' }}>
+                      കമ്മിറ്റിയുടെ പേര് നൽകുക (External Committee Name) *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Taliparamba Unit / Kannur District Committee"
+                      value={editReceivingEntityName}
+                      onChange={(e) => setEditReceivingEntityName(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #8B5CF6',
+                        fontSize: '0.88rem',
+                      }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Status */}

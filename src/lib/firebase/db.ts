@@ -137,7 +137,9 @@ export async function updateOfferInFirebase(
     offerType?: OfferType;
     quantity?: number;
     totalOfferedPaise?: number;
-    status?: 'pledged' | 'partial' | 'completed' | 'cancelled';
+    status?: 'pledged' | 'partial' | 'completed' | 'cancelled' | 'verified';
+    receivingEntity?: ReceivingEntity;
+    receivingEntityName?: string;
     eventId?: string;
     eventName?: string;
   },
@@ -150,6 +152,23 @@ export async function updateOfferInFirebase(
       ...updatedData,
       updatedAt: serverTimestamp(),
     });
+
+    // Synchronize receiving committee to linked cash collections if updated
+    if (updatedData.receivingEntity) {
+      try {
+        const qCash = query(collection(db, 'cashCollections'), where('offerId', '==', offerId));
+        const cashSnaps = await getDocs(qCash);
+        for (const cSnap of cashSnaps.docs) {
+          await updateDoc(doc(db, 'cashCollections', cSnap.id), {
+            receivingEntity: updatedData.receivingEntity,
+            receivingEntityName: updatedData.receivingEntityName || '',
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch (err) {
+        console.warn('Could not sync receivingEntity to linked cash collections:', err);
+      }
+    }
 
     const newAmount = updatedData.totalOfferedPaise ?? previousAmountPaise;
     const diffPaise = newAmount - previousAmountPaise;
