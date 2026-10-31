@@ -87,6 +87,24 @@ ${masjidName}
 const MOCK_TRANSACTIONS: MockTransaction[] = [];
 
 export default function OffersLedgerPage() {
+  const [eventsList, setEventsList] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: { id: string; name: string }[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({ id: docSnap.id, name: d.name || docSnap.id });
+        });
+        setEventsList(list);
+      },
+      (err) => console.warn('Could not fetch events for offers:', err)
+    );
+    return () => unsub();
+  }, []);
   const [transactions, setTransactions] = useState<MockTransaction[]>(MOCK_TRANSACTIONS);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -477,9 +495,12 @@ export default function OffersLedgerPage() {
           }}
         >
           <option value="all">📍 All Events &amp; Locations</option>
-          <option value="Ulikkal Event">Ulikkal Event</option>
-          <option value="Kuppam Unit Gathering">Kuppam Unit Gathering</option>
           <option value="General Campaign">General Campaign</option>
+          {eventsList.map((ev) => (
+            <option key={ev.id} value={ev.name}>
+              {ev.name}
+            </option>
+          ))}
         </select>
 
         {/* Status Filter */}
@@ -1091,8 +1112,11 @@ export default function OffersLedgerPage() {
                   }}
                 >
                   <option value="General Campaign">General Campaign</option>
-                  <option value="Ulikkal Event">Ulikkal Event</option>
-                  <option value="Kuppam Unit Gathering">Kuppam Unit Gathering</option>
+                  {eventsList.map((ev) => (
+                    <option key={ev.id} value={ev.name}>
+                      {ev.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

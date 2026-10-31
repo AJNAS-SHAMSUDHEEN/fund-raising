@@ -408,7 +408,7 @@ export default function HistoryPage() {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <Link
-                        href={`/receipt/${item.receiptId}?donor=${encodeURIComponent(session.name || 'Alhaj Muhammed')}&phone=${encodeURIComponent(session.phone || '9847123456')}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}`}
+                        href={`/receipt/${item.receiptId}?donor=${encodeURIComponent(session.name || 'Contributor')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}`}
                         className="btn btn-outline"
                         style={{ padding: '8px 16px', fontSize: '0.85rem', gap: '6px' }}
                       >

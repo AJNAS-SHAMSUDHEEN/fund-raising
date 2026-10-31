@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
 import { OfferType, ReceivingEntity } from '@/lib/types';
 import { INITIAL_CAMPAIGN } from '@/lib/state/mockStore';
 import { formatINRFromPaise, formatINR, normalizePhoneNumber } from '@/lib/calculations/currency';
@@ -41,7 +43,8 @@ export default function CashCollectionPOSPage() {
   // Step 3: Cash Recording Form State
   const [receivingEntity, setReceivingEntity] = useState<ReceivingEntity>('unit');
   const [receivingEntityName, setReceivingEntityName] = useState('');
-  const [selectedEventId, setSelectedEventId] = useState<string>('ulikkal');
+  const [eventsList, setEventsList] = useState<{ id: string; name: string }[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState<string>('general');
   const [offerType, setOfferType] = useState<OfferType>('musalla');
   const [quantity, setQuantity] = useState<number>(1);
   const [cashAmountRupees, setCashAmountRupees] = useState<number>(10360);
@@ -50,6 +53,29 @@ export default function CashCollectionPOSPage() {
 
   // Provisional Receipt Success State
   const [provisionalReceipt, setProvisionalReceipt] = useState<any | null>(null);
+
+  // Synchronize events dynamically from Firebase
+  useEffect(() => {
+    const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: { id: string; name: string }[] = [];
+        snapshot.forEach((docSnap) => {
+          const d = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            name: d.name || docSnap.id,
+          });
+        });
+        setEventsList(list);
+      },
+      (err) => {
+        console.warn('Could not fetch events for POS:', err);
+      }
+    );
+    return () => unsub();
+  }, []);
 
   const handleToggleNoPhone = (checked: boolean) => {
     setHasNoPhone(checked);
@@ -161,11 +187,12 @@ export default function CashCollectionPOSPage() {
 
     setIsSubmitting(true);
 
-    const eventName = selectedEventId === 'ulikkal'
-      ? 'Ulikkal Event'
-      : selectedEventId === 'kuppam'
-      ? 'Kuppam Unit Gathering'
-      : 'General Campaign';
+    const matchedEvent = eventsList.find((ev) => ev.id === selectedEventId);
+    const eventName = matchedEvent ? matchedEvent.name : (selectedEventId === 'general' ? 'General Campaign' : selectedEventId); // dynamic event name
+
+
+
+
 
     const calculatedPaise = Math.round(cashAmountRupees * 100);
 
@@ -338,11 +365,10 @@ export default function CashCollectionPOSPage() {
                   </button>
                 )}
               </div>
-
               {!hasNoPhone && (
                 <button
-                  type="button"
-                  onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
+type="button"
+onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
                   disabled={isSearching || phoneInput.length < 10}
                   className="btn btn-primary"
                   style={{ padding: '14px 22px', fontSize: '0.95rem', fontWeight: 700, gap: '6px' }}
@@ -372,30 +398,6 @@ export default function CashCollectionPOSPage() {
                 />
                 <span>മൊബൈൽ നമ്പർ ലഭ്യമല്ല (Donor has no mobile number — Direct entry)</span>
               </label>
-
-              {!hasNoPhone && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <span>Quick Test:</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPhoneInput('9847123456');
-                      performLookup('9847123456');
-                    }}
-                    style={{
-                      background: 'var(--brand-50)',
-                      border: '1px solid var(--brand-200)',
-                      color: 'var(--brand-800)',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    9847123456
-                  </button>
-                </div>
-              )}
             </div>
           </div>
 
@@ -850,9 +852,12 @@ export default function CashCollectionPOSPage() {
                       fontSize: '0.92rem',
                     }}
                   >
-                    <option value="ulikkal">Ulikkal Event (ഉളിക്കൽ പ്രോഗ്രാം)</option>
-                    <option value="kuppam">Kuppam Unit Gathering (കുപ്പം യൂണിറ്റ്)</option>
-                    <option value="general">General Office / Direct Campaign</option>
+                    <option value="general">General Campaign (പൊതു കാമ്പയിൻ)</option>
+                    {eventsList.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.name}
+                      </option>
+                    ))}
                   </select>
                   <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '4px', display: 'block' }}>
                     Cash recorded here will immediately reflect on the selected venue&apos;s live projector screen.

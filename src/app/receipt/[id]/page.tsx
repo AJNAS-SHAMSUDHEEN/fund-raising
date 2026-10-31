@@ -10,10 +10,10 @@ export default function ReceiptPage() {
   const searchParams = useSearchParams();
 
   const receiptId = (params?.id as string) || '10664';
-  const donorName = searchParams.get('donor') || 'Ajnas Shamsudheen';
+  const donorName = searchParams.get('donor') || 'Contributor';
   const donorPhone = searchParams.get('phone') || '';
   const donorPlace = searchParams.get('place') || '';
-  const amountPaise = parseInt(searchParams.get('amount') || '50000', 10);
+  const amountPaise = parseInt(searchParams.get('amount') || '0', 10);
   const paidPaise = parseInt(searchParams.get('paid') || '0', 10);
   const offerType = searchParams.get('type') || 'cash';
   const quantity = parseInt(searchParams.get('qty') || '1', 10);

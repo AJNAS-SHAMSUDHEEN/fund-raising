@@ -34,7 +34,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   const [newVolName, setNewVolName] = useState('');
   const [newVolPhone, setNewVolPhone] = useState('');
   const [newVolPin, setNewVolPin] = useState('');
-  const [newVolVenue, setNewVolVenue] = useState('Kuppam Unit Gathering');
+  const [newVolVenue, setNewVolVenue] = useState('General Campaign');
   const [modalError, setModalError] = useState('');
   const [isAddingVol, setIsAddingVol] = useState(false);
 
@@ -510,7 +510,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                     type="text"
                     value={newVolVenue}
                     onChange={(e) => setNewVolVenue(e.target.value)}
-                    placeholder="Kuppam Unit Gathering"
+                    placeholder="e.g. Mosque Counter / Venue Name"
                     style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-medium)', fontSize: '0.88rem' }}
                   />
                 </div>
