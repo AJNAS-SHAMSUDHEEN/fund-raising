@@ -12,6 +12,7 @@ export default function ReceiptPage() {
   const receiptId = (params?.id as string) || '10664';
   const donorName = searchParams.get('donor') || 'Ajnas Shamsudheen';
   const donorPhone = searchParams.get('phone') || '';
+  const donorPlace = searchParams.get('place') || '';
   const amountPaise = parseInt(searchParams.get('amount') || '50000', 10);
   const paidPaise = parseInt(searchParams.get('paid') || '0', 10);
   const offerType = searchParams.get('type') || 'cash';
@@ -306,7 +307,7 @@ export default function ReceiptPage() {
                   fontFamily: 'serif',
                   lineHeight: 1.2,
                 }}>
-                  {donorName}
+                  {donorName}{donorPlace ? ` (${donorPlace})` : ''}
                 </div>
               </div>
 

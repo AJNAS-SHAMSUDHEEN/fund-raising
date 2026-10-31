@@ -4,6 +4,7 @@ export type PaymentMethod = 'ONLINE' | 'CASH';
 export type OfferStatus = 'pending' | 'verified' | 'failed' | 'cancelled' | 'refunded' | 'pledged' | 'partial';
 export type CashCollectionStatus = 'pending_verification' | 'verified' | 'rejected' | 'adjusted';
 export type AdminRole = 'super_admin' | 'collection_admin' | 'event_operator';
+export type ReceivingEntity = 'unit' | 'district' | 'external';
 
 export interface CampaignConfig {
   id: string;
@@ -67,6 +68,9 @@ export interface Offer {
   pricingVersion: number;
   eventId?: string;
   eventName?: string;
+  receivingEntity?: ReceivingEntity;
+  receivingEntityName?: string;
+  hasNoPhone?: boolean;
   createdAt: string;
   verifiedAt?: string;
 }
@@ -78,6 +82,10 @@ export interface CashCollection {
   contributorId: string;
   contributorName?: string;
   contributorPhone: string;
+  contributorPlace?: string;
+  hasNoPhone?: boolean;
+  receivingEntity?: ReceivingEntity;
+  receivingEntityName?: string;
   amountPaise: number;
   offerType: OfferType;
   quantity: number;

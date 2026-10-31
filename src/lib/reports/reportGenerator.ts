@@ -9,6 +9,9 @@ export interface ReportItem {
   contributorName: string;
   phone: string;
   place?: string;
+  hasNoPhone?: boolean;
+  receivingEntity?: 'unit' | 'district' | 'external';
+  receivingEntityName?: string;
   type: 'offer' | 'cash';
   category: string;        // 'cash', 'sqft', 'musalla', etc.
   quantity?: number;
@@ -26,12 +29,16 @@ export interface ReportFilterOptions {
   endDate?: Date | null;
   dateRangeLabel: string;
   typeFilter?: 'all' | 'cash' | 'offer';
+  receivingFilter?: 'all' | 'unit' | 'district' | 'external';
   collectorFilter?: string;
 }
 
 export interface ReportSummary {
   totalOfferedPaise: number;
   totalCollectedPaise: number;
+  unitCollectedPaise: number;
+  districtCollectedPaise: number;
+  externalCollectedPaise: number;
   remainingBalancePaise: number;
   collectionRate: number; // percentage e.g. 68.5
   totalTransactionsCount: number;
@@ -181,7 +188,17 @@ export function generateCampaignPdf(
     doc.text(kpi.value, x + boxWidth / 2, currentY + 13, { align: 'center' });
   });
 
-  currentY += boxHeight + 8;
+  // Committee / Account Distribution Sub-bar
+  currentY += boxHeight + 4;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, currentY, pageWidth - margin * 2, 7, 1.5, 1.5, 'F');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(51, 65, 85);
+  const distText = `Account Realization:  Kuppam Unit: ${formatINR(summary.unitCollectedPaise || 0)}   |   District Committee: ${formatINR(summary.districtCollectedPaise || 0)}   |   External Units: ${formatINR(summary.externalCollectedPaise || 0)}`;
+  doc.text(distText, margin + 4, currentY + 4.6);
+
+  currentY += 10;
 
   // 3. Category Breakdown Table
   doc.setFont('helvetica', 'bold');
@@ -295,13 +312,20 @@ export function generateCampaignPdf(
         typeLabel = 'Offer (Partially Paid)';
       }
     }
+    const phoneDisplay = item.hasNoPhone || !item.phone ? 'No Phone' : item.phone;
+    let collectorDisplay = item.collectorOrVenue || 'Direct';
+    if (item.receivingEntity === 'district') {
+      collectorDisplay = `${collectorDisplay} [District]`;
+    } else if (item.receivingEntity === 'external') {
+      collectorDisplay = `${collectorDisplay} [${item.receivingEntityName || 'External'}]`;
+    }
     return [
       item.date,
       item.referenceNumber,
       item.contributorName,
-      item.phone || '-',
+      phoneDisplay,
       typeLabel,
-      item.collectorOrVenue || 'Direct',
+      collectorDisplay,
       formatINR(item.amountPaise),
     ];
   });
@@ -397,6 +421,7 @@ export function exportReportToCsv(items: ReportItem[], fileName = 'Campaign_Tran
     'Contributor Name',
     'Phone',
     'Place',
+    'Account / Committee',
     'Type',
     'Category',
     'Collector / Desk',
@@ -407,21 +432,30 @@ export function exportReportToCsv(items: ReportItem[], fileName = 'Campaign_Tran
     'Linked Offer Ref',
   ];
 
-  const rows = items.map((item) => [
-    `"${item.date}"`,
-    `"${item.referenceNumber}"`,
-    `"${item.contributorName.replace(/"/g, '""')}"`,
-    `"${item.phone}"`,
-    `"${item.place || ''}"`,
-    `"${item.type}"`,
-    `"${item.category}"`,
-    `"${item.collectorOrVenue.replace(/"/g, '""')}"`,
-    `"${item.status}"`,
-    (item.amountPaise / 100).toFixed(2),
-    item.paidPaise !== undefined ? (item.paidPaise / 100).toFixed(2) : (item.type === 'cash' ? (item.amountPaise / 100).toFixed(2) : '0.00'),
-    item.remainingPaise !== undefined ? (item.remainingPaise / 100).toFixed(2) : '0.00',
-    `"${item.linkedOfferRef || ''}"`,
-  ]);
+  const rows = items.map((item) => {
+    const entityLabel = item.receivingEntity === 'district'
+      ? 'District Committee Account'
+      : item.receivingEntity === 'external'
+      ? `External (${item.receivingEntityName || 'Other'})`
+      : 'Kuppam Unit Committee';
+
+    return [
+      `"${item.date}"`,
+      `"${item.referenceNumber}"`,
+      `"${item.contributorName.replace(/"/g, '""')}"`,
+      `"${item.hasNoPhone || !item.phone ? 'N/A' : item.phone}"`,
+      `"${item.place || ''}"`,
+      `"${entityLabel}"`,
+      `"${item.type}"`,
+      `"${item.category}"`,
+      `"${item.collectorOrVenue.replace(/"/g, '""')}"`,
+      `"${item.status}"`,
+      (item.amountPaise / 100).toFixed(2),
+      item.paidPaise !== undefined ? (item.paidPaise / 100).toFixed(2) : (item.type === 'cash' ? (item.amountPaise / 100).toFixed(2) : '0.00'),
+      item.remainingPaise !== undefined ? (item.remainingPaise / 100).toFixed(2) : '0.00',
+      `"${item.linkedOfferRef || ''}"`,
+    ];
+  });
 
   const csvContent = [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

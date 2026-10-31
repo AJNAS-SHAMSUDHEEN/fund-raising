@@ -18,7 +18,7 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from './client';
-import { OfferType } from '@/lib/types';
+import { OfferType, ReceivingEntity } from '@/lib/types';
 
 export interface FirestoreOffer {
   id?: string;
@@ -292,6 +292,10 @@ export async function recordCashToFirebase(cashData: {
   receiptNumber: string;
   contributorName?: string;
   contributorPhone: string;
+  contributorPlace?: string;
+  hasNoPhone?: boolean;
+  receivingEntity?: ReceivingEntity;
+  receivingEntityName?: string;
   offerType: OfferType;
   quantity: number;
   amountPaise: number;
@@ -305,6 +309,11 @@ export async function recordCashToFirebase(cashData: {
     const docRef = await addDoc(collection(db, 'cashCollections'), {
       ...cashData,
       contributorName: cashData.contributorName?.trim() || 'Well Wisher',
+      contributorPhone: cashData.contributorPhone || '',
+      contributorPlace: cashData.contributorPlace?.trim() || '',
+      hasNoPhone: Boolean(cashData.hasNoPhone),
+      receivingEntity: cashData.receivingEntity || 'unit',
+      receivingEntityName: cashData.receivingEntityName?.trim() || '',
       eventId: cashData.eventId || 'general',
       eventName: cashData.eventName || 'General Campaign',
       status: 'verified',

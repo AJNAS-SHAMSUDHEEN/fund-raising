@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Users,
   Building,
+  Building2,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -43,6 +44,7 @@ export default function AdminReportsPage() {
   const [customStart, setCustomStart] = useState<string>('');
   const [customEnd, setCustomEnd] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'cash' | 'offer'>('all');
+  const [receivingFilter, setReceivingFilter] = useState<'all' | 'unit' | 'district' | 'external'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // 1. Fetch live data from Firestore
@@ -134,6 +136,9 @@ export default function AdminReportsPage() {
         contributorName: o.contributorName || 'Anonymous Donor',
         phone: o.contributorPhone || '',
         place: o.contributorPlace || '',
+        hasNoPhone: Boolean(o.hasNoPhone || !o.contributorPhone),
+        receivingEntity: o.receivingEntity || 'unit',
+        receivingEntityName: o.receivingEntityName || '',
         type: 'offer',
         category: o.offerType || 'cash',
         quantity: o.quantity || 1,
@@ -174,6 +179,9 @@ export default function AdminReportsPage() {
         contributorName: c.contributorName || 'Well Wisher',
         phone: c.contributorPhone || '',
         place: c.contributorPlace || (parentOffer?.contributorPlace || ''),
+        hasNoPhone: Boolean(c.hasNoPhone || !c.contributorPhone),
+        receivingEntity: c.receivingEntity || 'unit',
+        receivingEntityName: c.receivingEntityName || '',
         type: 'cash',
         category: c.offerType || 'cash',
         quantity: c.quantity || 1,
@@ -252,6 +260,14 @@ export default function AdminReportsPage() {
         return false;
       }
 
+      // Receiving Entity / Committee filter
+      if (receivingFilter !== 'all') {
+        const entity = item.receivingEntity || 'unit';
+        if (entity !== receivingFilter) {
+          return false;
+        }
+      }
+
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -268,12 +284,15 @@ export default function AdminReportsPage() {
 
       return true;
     });
-  }, [rawReportItems, dateBoundaries, typeFilter, searchQuery]);
+  }, [rawReportItems, dateBoundaries, typeFilter, receivingFilter, searchQuery]);
 
   // 5. Compute Summaries & Breakdowns
   const reportSummary = useMemo<ReportSummary>(() => {
     let totalOfferedPaise = 0;
     let totalCollectedPaise = 0;
+    let unitCollectedPaise = 0;
+    let districtCollectedPaise = 0;
+    let externalCollectedPaise = 0;
     let totalCollectedForOffersPaise = 0;
     let offerCount = 0;
     let collectionCount = 0;
@@ -298,6 +317,15 @@ export default function AdminReportsPage() {
       } else if (item.type === 'cash') {
         totalCollectedPaise += item.amountPaise;
         collectionCount++;
+
+        const entity = item.receivingEntity || 'unit';
+        if (entity === 'unit') {
+          unitCollectedPaise += item.amountPaise;
+        } else if (entity === 'district') {
+          districtCollectedPaise += item.amountPaise;
+        } else if (entity === 'external') {
+          externalCollectedPaise += item.amountPaise;
+        }
 
         if (item.linkedOfferRef || item.linkedOfferId) {
           totalCollectedForOffersPaise += item.amountPaise;
@@ -348,6 +376,9 @@ export default function AdminReportsPage() {
     return {
       totalOfferedPaise,
       totalCollectedPaise,
+      unitCollectedPaise,
+      districtCollectedPaise,
+      externalCollectedPaise,
       remainingBalancePaise,
       collectionRate,
       totalTransactionsCount: filteredItems.length,
@@ -367,6 +398,7 @@ export default function AdminReportsPage() {
         endDate: dateBoundaries.end,
         dateRangeLabel: dateBoundaries.label,
         typeFilter,
+        receivingFilter,
       };
       generateCampaignPdf(filteredItems, reportSummary, options);
     } catch (e) {
@@ -657,6 +689,29 @@ export default function AdminReportsPage() {
                 <option value="offer">Offers Pledged Only</option>
               </select>
             </div>
+
+            {/* Account / Committee Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Account / Committee:</span>
+              <select
+                value={receivingFilter}
+                onChange={(e) => setReceivingFilter(e.target.value as any)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  color: 'var(--brand-900)',
+                  background: '#FFFFFF',
+                }}
+              >
+                <option value="all">All Accounts / Committees</option>
+                <option value="unit">കുപ്പം യൂണിറ്റ് (Unit Only)</option>
+                <option value="district">ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട് (District Committee)</option>
+                <option value="external">മറ്റ് എക്സ്റ്റേണൽ കമ്മിറ്റികൾ (External)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -784,6 +839,84 @@ export default function AdminReportsPage() {
           <div style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '4px' }}>
             Cash realized vs total pledges
           </div>
+        </div>
+      </div>
+
+      {/* Account / Committee Realization Breakdown Banner */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: 'var(--radius-lg)',
+          padding: '14px 20px',
+          marginBottom: '24px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Building2 size={20} color="var(--brand-800)" />
+          <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--brand-900)' }}>
+            Account Breakdown (ഫണ്ട് സ്വീകരിച്ച അക്കൗണ്ടുകൾ):
+          </span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+          <div
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              background: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span style={{ fontSize: '0.8rem', color: '#166534', fontWeight: 600 }}>കുപ്പം യൂണിറ്റ്:</span>
+            <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#15803D' }}>
+              {formatINRFromPaise(reportSummary.unitCollectedPaise || 0)}
+            </span>
+          </div>
+
+          <div
+            style={{
+              padding: '6px 14px',
+              borderRadius: '8px',
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <span style={{ fontSize: '0.8rem', color: '#1E40AF', fontWeight: 600 }}>ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്:</span>
+            <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#1D4ED8' }}>
+              {formatINRFromPaise(reportSummary.districtCollectedPaise || 0)}
+            </span>
+          </div>
+
+          {(reportSummary.externalCollectedPaise || 0) > 0 && (
+            <div
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: '#FAF5FF',
+                border: '1px solid #E9D5FF',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <span style={{ fontSize: '0.8rem', color: '#6B21A8', fontWeight: 600 }}>മറ്റ് എക്സ്റ്റേണൽ കമ്മിറ്റികൾ:</span>
+              <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#7E22CE' }}>
+                {formatINRFromPaise(reportSummary.externalCollectedPaise || 0)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1003,7 +1136,11 @@ export default function AdminReportsPage() {
                         {item.contributorName}
                       </td>
                       <td style={{ padding: '12px 16px', color: '#64748B' }}>
-                        {item.phone || '-'}
+                        {item.hasNoPhone || !item.phone ? (
+                          <span style={{ fontStyle: 'italic', color: '#94A3B8', fontSize: '0.8rem' }}>ലഭ്യമല്ല</span>
+                        ) : (
+                          item.phone
+                        )}
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
@@ -1042,6 +1179,45 @@ export default function AdminReportsPage() {
                               'Offer Pledged'
                             )}
                           </span>
+
+                          {/* Account indicator if District or External */}
+                          {item.receivingEntity === 'district' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                width: 'fit-content',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                background: '#EFF6FF',
+                                color: '#1D4ED8',
+                                border: '1px solid #BFDBFE',
+                              }}
+                            >
+                              🏛️ ജില്ലാ കമ്മിറ്റി
+                            </span>
+                          )}
+                          {item.receivingEntity === 'external' && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                width: 'fit-content',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                background: '#FAF5FF',
+                                color: '#7E22CE',
+                                border: '1px solid #E9D5FF',
+                              }}
+                            >
+                              🌐 {item.receivingEntityName || 'External'}
+                            </span>
+                          )}
+
                           {!isCash && (item.paidPaise ?? 0) > 0 && (
                             <span style={{ fontSize: '0.72rem', color: '#64748B' }}>
                               Paid: {formatINRFromPaise(item.paidPaise || 0)}

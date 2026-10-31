@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { OfferType } from '@/lib/types';
+import { OfferType, ReceivingEntity } from '@/lib/types';
 import { INITIAL_CAMPAIGN } from '@/lib/state/mockStore';
 import { formatINRFromPaise, formatINR, normalizePhoneNumber } from '@/lib/calculations/currency';
 import {
@@ -28,15 +28,19 @@ export default function CashCollectionPOSPage() {
   const { adminUser } = useAdminAuth();
   // Step 1: Phone Search State
   const [phoneInput, setPhoneInput] = useState('');
+  const [hasNoPhone, setHasNoPhone] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
   // Step 2: Donor Profile & Previous Offers State
   const [donorHistory, setDonorHistory] = useState<DonorHistory | null>(null);
   const [contributorName, setContributorName] = useState('');
+  const [contributorPlace, setContributorPlace] = useState('');
   const [selectedOffer, setSelectedOffer] = useState<DonorOfferRecord | null>(null);
 
   // Step 3: Cash Recording Form State
+  const [receivingEntity, setReceivingEntity] = useState<ReceivingEntity>('unit');
+  const [receivingEntityName, setReceivingEntityName] = useState('');
   const [selectedEventId, setSelectedEventId] = useState<string>('ulikkal');
   const [offerType, setOfferType] = useState<OfferType>('musalla');
   const [quantity, setQuantity] = useState<number>(1);
@@ -46,6 +50,18 @@ export default function CashCollectionPOSPage() {
 
   // Provisional Receipt Success State
   const [provisionalReceipt, setProvisionalReceipt] = useState<any | null>(null);
+
+  const handleToggleNoPhone = (checked: boolean) => {
+    setHasNoPhone(checked);
+    if (checked) {
+      setPhoneInput('');
+      setDonorHistory(null);
+      setSelectedOffer(null);
+      setHasSearched(true); // Open step 2 & 3 immediately
+    } else {
+      resetLookup();
+    }
+  };
 
   // Auto-search when 10 digits are entered
   const handlePhoneChange = async (val: string) => {
@@ -126,9 +142,9 @@ export default function CashCollectionPOSPage() {
 
   const handleRecordCash = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = phoneInput.replace(/\D/g, '').slice(-10);
-    if (!cleanPhone || cleanPhone.length !== 10) {
-      alert('Please enter a valid 10-digit mobile number (Primary ID)');
+    const cleanPhone = hasNoPhone ? '' : phoneInput.replace(/\D/g, '').slice(-10);
+    if (!hasNoPhone && (!cleanPhone || cleanPhone.length !== 10)) {
+      alert('Please enter a valid 10-digit mobile number, or check "Donor has no mobile number"');
       return;
     }
 
@@ -137,8 +153,13 @@ export default function CashCollectionPOSPage() {
       return;
     }
 
+    const resolvedContributorName = contributorName.trim() || donorHistory?.contributorName || (hasNoPhone ? '' : 'Well Wisher');
+    if (!resolvedContributorName) {
+      alert('ദയവായി സംഭാവന നൽകിയ ആളുടെ പേര് നൽകുക (Please enter contributor name)');
+      return;
+    }
+
     setIsSubmitting(true);
-    const resolvedContributorName = contributorName.trim() || donorHistory?.contributorName || 'Well Wisher';
 
     const eventName = selectedEventId === 'ulikkal'
       ? 'Ulikkal Event'
@@ -152,6 +173,10 @@ export default function CashCollectionPOSPage() {
       receiptNumber: `CASH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
       contributorName: resolvedContributorName,
       contributorPhone: cleanPhone,
+      contributorPlace: contributorPlace.trim(),
+      hasNoPhone,
+      receivingEntity,
+      receivingEntityName: receivingEntity === 'external' ? receivingEntityName.trim() : '',
       offerType,
       quantity,
       amountPaise: calculatedPaise,
@@ -169,6 +194,10 @@ export default function CashCollectionPOSPage() {
         receiptNumber: newReceipt.receiptNumber,
         contributorName: resolvedContributorName,
         contributorPhone: cleanPhone,
+        contributorPlace: contributorPlace.trim(),
+        hasNoPhone,
+        receivingEntity,
+        receivingEntityName: receivingEntity === 'external' ? receivingEntityName.trim() : '',
         offerType,
         quantity,
         amountPaise: calculatedPaise,
@@ -253,16 +282,17 @@ export default function CashCollectionPOSPage() {
                 display: 'flex',
                 alignItems: 'center',
                 flex: 1,
-                border: '2px solid var(--border-medium)',
+                border: hasNoPhone ? '1.5px dashed #CBD5E1' : '2px solid var(--border-medium)',
                 borderRadius: '12px',
-                background: '#F8FAFC',
+                background: hasNoPhone ? '#F1F5F9' : '#F8FAFC',
                 padding: '4px 14px',
+                opacity: hasNoPhone ? 0.75 : 1,
                 transition: 'border-color 0.2s ease',
               }}>
                 <span style={{
                   fontSize: '1.15rem',
                   fontWeight: 800,
-                  color: 'var(--brand-800)',
+                  color: hasNoPhone ? '#94A3B8' : 'var(--brand-800)',
                   marginRight: '10px',
                   borderRight: '1px solid var(--border-medium)',
                   paddingRight: '10px',
@@ -272,7 +302,8 @@ export default function CashCollectionPOSPage() {
                 <input
                   type="tel"
                   maxLength={10}
-                  placeholder="Enter 10-digit mobile number (e.g. 9847123456)"
+                  disabled={hasNoPhone}
+                  placeholder={hasNoPhone ? "മൊബൈൽ നമ്പർ ലഭ്യമല്ല (Direct Cash Entry)" : "Enter 10-digit mobile number (e.g. 9847123456)"}
                   value={phoneInput}
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   style={{
@@ -284,10 +315,11 @@ export default function CashCollectionPOSPage() {
                     letterSpacing: '0.04em',
                     outline: 'none',
                     padding: '8px 0',
-                    color: '#0F172A',
+                    color: hasNoPhone ? '#64748B' : '#0F172A',
+                    cursor: hasNoPhone ? 'not-allowed' : 'text',
                   }}
                 />
-                {phoneInput && (
+                {phoneInput && !hasNoPhone && (
                   <button
                     type="button"
                     onClick={() => {
@@ -307,44 +339,151 @@ export default function CashCollectionPOSPage() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
-                disabled={isSearching || phoneInput.length < 10}
-                className="btn btn-primary"
-                style={{ padding: '14px 22px', fontSize: '0.95rem', fontWeight: 700, gap: '6px' }}
-              >
-                <Search size={18} />
-                <span>{isSearching ? 'Searching...' : 'Search'}</span>
-              </button>
+              {!hasNoPhone && (
+                <button
+                  type="button"
+                  onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
+                  disabled={isSearching || phoneInput.length < 10}
+                  className="btn btn-primary"
+                  style={{ padding: '14px 22px', fontSize: '0.95rem', fontWeight: 700, gap: '6px' }}
+                >
+                  <Search size={18} />
+                  <span>{isSearching ? 'Searching...' : 'Search'}</span>
+                </button>
+              )}
             </div>
 
-            {/* Quick Demo Hint */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              <span>Quick Test Donor:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setPhoneInput('9847123456');
-                  performLookup('9847123456');
-                }}
-                style={{
-                  background: 'var(--brand-50)',
-                  border: '1px solid var(--brand-200)',
-                  color: 'var(--brand-800)',
-                  fontWeight: 700,
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                }}
-              >
-                9847123456 (Moideen Kutty Master)
-              </button>
+            {/* No Mobile Number Checkbox */}
+            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <label style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                color: hasNoPhone ? '#B45309' : '#475569',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={hasNoPhone}
+                  onChange={(e) => handleToggleNoPhone(e.target.checked)}
+                  style={{ width: '17px', height: '17px', accentColor: '#D97706', cursor: 'pointer' }}
+                />
+                <span>മൊബൈൽ നമ്പർ ലഭ്യമല്ല (Donor has no mobile number — Direct entry)</span>
+              </label>
+
+              {!hasNoPhone && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <span>Quick Test:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhoneInput('9847123456');
+                      performLookup('9847123456');
+                    }}
+                    style={{
+                      background: 'var(--brand-50)',
+                      border: '1px solid var(--brand-200)',
+                      color: 'var(--brand-800)',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    9847123456
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* STEP 2: DETAILS & PREVIOUS OFFERS UNDER THIS MOBILE NUMBER */}
           {hasSearched && (
+            hasNoPhone ? (
+              <div style={{
+                background: '#FFFFFF',
+                borderRadius: '20px',
+                padding: '24px',
+                border: '1.5px solid #FCD34D',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                  <span style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: '#D97706',
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                  }}>
+                    2
+                  </span>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#92400E', margin: 0 }}>
+                    Contributor Profile (മൊബൈൽ നമ്പർ ഇല്ലാത്ത വ്യക്തി)
+                  </h2>
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                  gap: '14px',
+                  background: '#FEFCE8',
+                  padding: '16px',
+                  borderRadius: '16px',
+                  border: '1px solid #FDE68A',
+                }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#92400E', marginBottom: '4px' }}>
+                      Contributor Full Name (ദാതാവിന്റെ പേര്) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={contributorName}
+                      placeholder="e.g. C.K. Abdulla Haji"
+                      onChange={(e) => setContributorName(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #F59E0B',
+                        fontWeight: 700,
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        fontSize: '1rem',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#92400E', marginBottom: '4px' }}>
+                      Place / Address (സ്ഥലം / വീട്ടുപേര്)
+                    </label>
+                    <input
+                      type="text"
+                      value={contributorPlace}
+                      placeholder="e.g. Kuppam / Taliparamba"
+                      onChange={(e) => setContributorPlace(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        color: '#0F172A',
+                        background: '#FFFFFF',
+                        fontSize: '0.95rem',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
             <div style={{
               background: '#FFFFFF',
               borderRadius: '20px',
@@ -547,6 +686,7 @@ export default function CashCollectionPOSPage() {
                 )}
               </div>
             </div>
+            )
           )}
 
           {/* STEP 3: RECORD CASH COLLECTION CARD */}
@@ -611,6 +751,86 @@ export default function CashCollectionPOSPage() {
                 gap: '18px',
                 marginBottom: '20px',
               }}>
+                {/* Receiving Committee / Account Selector */}
+                <div style={{ gridColumn: '1 / -1', background: '#F8FAFC', padding: '16px', borderRadius: '14px', border: '1.5px solid #E2E8F0', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 800, color: '#0F172A', marginBottom: '8px' }}>
+                    🏛️ തുക സ്വീകരിച്ച അക്കൗണ്ട് / കമ്മിറ്റി (Received Into Account / Committee) *
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                    gap: '10px',
+                  }}>
+                    {[
+                      { id: 'unit', label: 'കുപ്പം യൂണിറ്റ് കമ്മിറ്റി', desc: 'Salafi Masjid Kuppam Direct Fund', color: '#15803D' },
+                      { id: 'district', label: 'ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്', desc: 'District Committee Bank Account', color: '#0369A1' },
+                      { id: 'external', label: 'മറ്റ് എക്സ്റ്റേണൽ കമ്മിറ്റികൾ', desc: 'Other External Units / Committees', color: '#7C3AED' },
+                    ].map((item) => {
+                      const isSelected = receivingEntity === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => setReceivingEntity(item.id as any)}
+                          style={{
+                            padding: '12px 14px',
+                            borderRadius: '12px',
+                            border: isSelected ? `2px solid ${item.color}` : '1.5px solid #CBD5E1',
+                            background: isSelected ? '#FFFFFF' : '#F8FAFC',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '3px',
+                            boxShadow: isSelected ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              border: isSelected ? `5px solid ${item.color}` : '2px solid #94A3B8',
+                              background: '#FFFFFF',
+                            }} />
+                            <strong style={{ fontSize: '0.88rem', color: isSelected ? item.color : '#1E293B' }}>
+                              {item.label}
+                            </strong>
+                          </div>
+                          <span style={{ fontSize: '0.74rem', color: '#64748B', paddingLeft: '24px' }}>
+                            {item.desc}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {receivingEntity === 'external' && (
+                    <div style={{ marginTop: '12px' }}>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#6D28D9', marginBottom: '4px' }}>
+                        കമ്മിറ്റിയുടെ പേര് നൽകുക (External Committee Name) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Taliparamba Unit / Kannur District Committee"
+                        value={receivingEntityName}
+                        onChange={(e) => setReceivingEntityName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1.5px solid #8B5CF6',
+                          fontSize: '0.9rem',
+                          background: '#FFFFFF',
+                          color: '#0F172A',
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
                 {/* Event Assignment Dropdown */}
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#15803D', marginBottom: '6px' }}>
@@ -832,7 +1052,21 @@ export default function CashCollectionPOSPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>Contributor:</span>
               <strong style={{ color: 'var(--brand-900)' }}>
-                {provisionalReceipt.contributorName} (+91 {provisionalReceipt.contributorPhone})
+                {provisionalReceipt.contributorName} {provisionalReceipt.contributorPhone ? `(+91 ${provisionalReceipt.contributorPhone})` : '• [No Phone]'}
+                {provisionalReceipt.contributorPlace ? ` • 📍 ${provisionalReceipt.contributorPlace}` : ''}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Received Into:</span>
+              <strong style={{
+                color: provisionalReceipt.receivingEntity === 'district' ? '#0369A1' : provisionalReceipt.receivingEntity === 'external' ? '#7C3AED' : '#15803D'
+              }}>
+                {provisionalReceipt.receivingEntity === 'district'
+                  ? '🏛️ ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്'
+                  : provisionalReceipt.receivingEntity === 'external'
+                  ? `🏛️ ${provisionalReceipt.receivingEntityName || 'മറ്റ് കമ്മിറ്റികൾ'}`
+                  : '🏛️ കുപ്പം യൂണിറ്റ് കമ്മിറ്റി'}
               </strong>
             </div>
 
@@ -877,7 +1111,7 @@ export default function CashCollectionPOSPage() {
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <a
-              href={`/receipt/${provisionalReceipt.receiptNumber}?donor=${encodeURIComponent(provisionalReceipt.contributorName)}&phone=${provisionalReceipt.contributorPhone}&amount=${provisionalReceipt.amountPaise}&type=${provisionalReceipt.offerType}&qty=${provisionalReceipt.quantity}&purpose=${encodeURIComponent(`Salafi Masjid Land Acquisition — ${provisionalReceipt.eventName}`)}`}
+              href={`/receipt/${provisionalReceipt.receiptNumber}?donor=${encodeURIComponent(provisionalReceipt.contributorName)}&phone=${provisionalReceipt.contributorPhone}&place=${encodeURIComponent(provisionalReceipt.contributorPlace || '')}&amount=${provisionalReceipt.amountPaise}&type=${provisionalReceipt.offerType}&qty=${provisionalReceipt.quantity}&purpose=${encodeURIComponent(`Salafi Masjid Land Acquisition — ${provisionalReceipt.eventName}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-primary"
@@ -887,20 +1121,22 @@ export default function CashCollectionPOSPage() {
               <span>Official Voucher</span>
             </a>
 
-            <a
-              href={`https://wa.me/91${provisionalReceipt.contributorPhone}?text=${encodeURIComponent(
-                `Wisdom Islamic Organization Kuppam Unit - Salafi Masjid Land Acquisition\n\nReceived with thanks: ${formatINRFromPaise(
-                  provisionalReceipt.amountPaise
-                )} as Cash Collection.\nReceipt #: ${provisionalReceipt.receiptNumber}\nEvent: ${provisionalReceipt.eventName}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline"
-              style={{ flex: 1, padding: '12px', gap: '8px', minWidth: '140px', color: '#15803D' }}
-            >
-              <Share2 size={16} />
-              <span>WhatsApp</span>
-            </a>
+            {provisionalReceipt.contributorPhone ? (
+              <a
+                href={`https://wa.me/91${provisionalReceipt.contributorPhone}?text=${encodeURIComponent(
+                  `Wisdom Islamic Organization Kuppam Unit - Salafi Masjid Land Acquisition\n\nReceived with thanks: ${formatINRFromPaise(
+                    provisionalReceipt.amountPaise
+                  )} as Cash Collection.\nReceipt #: ${provisionalReceipt.receiptNumber}\nEvent: ${provisionalReceipt.eventName}`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline"
+                style={{ flex: 1, padding: '12px', gap: '8px', minWidth: '140px', color: '#15803D' }}
+              >
+                <Share2 size={16} />
+                <span>WhatsApp</span>
+              </a>
+            ) : null}
 
             <button
               type="button"
