@@ -1,4 +1,5 @@
 import {
+  runTransaction,
   collection,
   doc,
   addDoc,
@@ -304,6 +305,37 @@ export interface DonorHistory {
     date: string;
     eventName?: string;
   }>;
+}
+
+
+// 2a. Sequential Atomic Receipt Number Generator (Starting from 1001)
+export async function getNextReceiptNumber(): Promise<string> {
+  try {
+    const counterRef = doc(db, 'systemCounters', 'receiptCounter');
+    const nextVal = await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(counterRef);
+      let nextNumber = 1001;
+      if (snap.exists()) {
+        const current = snap.data().current;
+        if (typeof current === 'number' && current >= 1001) {
+          nextNumber = current + 1;
+        } else {
+          nextNumber = 1001;
+        }
+      }
+      transaction.set(counterRef, { current: nextNumber, updatedAt: serverTimestamp() }, { merge: true });
+      return nextNumber;
+    });
+    return String(nextVal);
+  } catch (err) {
+    console.error('Error generating sequential receipt number:', err);
+    try {
+      const snap = await getDocs(collection(db, 'cashCollections'));
+      return String(1001 + snap.size);
+    } catch {
+      return '1001';
+    }
+  }
 }
 
 // 2. Record Direct Cash Collection by Admin (Optionally tagged to an event & linked to an offer)

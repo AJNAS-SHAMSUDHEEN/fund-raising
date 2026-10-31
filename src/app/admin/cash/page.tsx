@@ -23,7 +23,7 @@ import {
   Share2,
   RotateCcw
 } from 'lucide-react';
-import { recordCashToFirebase, getDonorHistoryByPhone, DonorHistory, DonorOfferRecord } from '@/lib/firebase/db';
+import { recordCashToFirebase, getDonorHistoryByPhone, getNextReceiptNumber, DonorHistory, DonorOfferRecord } from '@/lib/firebase/db';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 
 export default function CashCollectionPOSPage() {
@@ -194,10 +194,11 @@ export default function CashCollectionPOSPage() {
 
 
 
+    const generatedReceiptNumber = await getNextReceiptNumber();
     const calculatedPaise = Math.round(cashAmountRupees * 100);
 
     const newReceipt = {
-      receiptNumber: `CASH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      receiptNumber: generatedReceiptNumber,
       contributorName: resolvedContributorName,
       contributorPhone: cleanPhone,
       contributorPlace: contributorPlace.trim(),
@@ -1050,8 +1051,8 @@ onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
             fontSize: '0.92rem',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Provisional Receipt #:</span>
-              <strong style={{ color: 'var(--brand-900)' }}>{provisionalReceipt.receiptNumber}</strong>
+              <span style={{ color: 'var(--text-muted)' }}>Official E-Receipt #:</span>
+              <strong style={{ color: '#B91C1C', fontFamily: 'monospace', fontSize: '1.05rem' }}>ER.No. {provisionalReceipt.receiptNumber}</strong>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1123,7 +1124,7 @@ onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
               style={{ flex: 1, padding: '12px', gap: '8px', minWidth: '140px', background: '#0284C7', borderColor: '#0284C7' }}
             >
               <Printer size={16} />
-              <span>Official Voucher</span>
+              <span>Official E-Receipt</span>
             </a>
 
             {provisionalReceipt.contributorPhone ? (
@@ -1131,7 +1132,7 @@ onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
                 href={`https://wa.me/91${provisionalReceipt.contributorPhone}?text=${encodeURIComponent(
                   `Wisdom Islamic Organization Kuppam Unit - Salafi Masjid Land Acquisition\n\nReceived with thanks: ${formatINRFromPaise(
                     provisionalReceipt.amountPaise
-                  )} as Cash Collection.\nReceipt #: ${provisionalReceipt.receiptNumber}\nEvent: ${provisionalReceipt.eventName}`
+                  )} as Cash Collection.\nER.No: ${provisionalReceipt.receiptNumber}\nEvent: ${provisionalReceipt.eventName}`
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
