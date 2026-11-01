@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
-import { updateOfferInFirebase, deleteOfferFromFirebase } from '@/lib/firebase/db';
+import { updateOfferInFirebase, deleteOfferFromFirebase, updateCashCollectionInFirebase } from '@/lib/firebase/db';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 import { formatDisplayPhone, buildWhatsAppLink } from '@/lib/utils/phone';
 import { OfferType, PaymentMethod, OfferStatus, ReceivingEntity } from '@/lib/types';
@@ -93,6 +93,7 @@ ${masjidName}
 const MOCK_TRANSACTIONS: MockTransaction[] = [];
 
 export default function OffersLedgerPage() {
+  const { adminUser } = useAdminAuth();
   const [eventsList, setEventsList] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export default function OffersLedgerPage() {
   // Edit form state
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editPlace, setEditPlace] = useState('');
   const [editType, setEditType] = useState<OfferType>('cash');
   const [editQuantity, setEditQuantity] = useState(1);
   const [editAmountINR, setEditAmountINR] = useState('');
@@ -265,6 +267,7 @@ export default function OffersLedgerPage() {
     setEditingOffer(offer);
     setEditName(offer.contributorName);
     setEditPhone(offer.phone);
+    setEditPlace(offer.place || '');
     setEditType(offer.offerType);
     setEditQuantity(offer.quantity || 1);
     setEditAmountINR((offer.amountPaise / 100).toString());
@@ -300,23 +303,46 @@ export default function OffersLedgerPage() {
       else if (editEventName.toLowerCase().includes('kuppam')) eventId = 'kuppam-gathering-2026';
       else if (editEventName !== 'General Campaign') eventId = editEventName.toLowerCase().replace(/\s+/g, '-');
 
-      await updateOfferInFirebase(
-        editingOffer.id,
-        {
-          contributorName: editName.trim() || 'Well Wisher',
-          contributorPhone: cleanPhone,
-          offerType: editType,
-          quantity: Math.max(1, editQuantity),
-          totalOfferedPaise: newAmountPaise,
-          status: editStatus as any,
-          receivingEntity: editReceivingEntity,
-          receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
-          eventName: editEventName,
-          eventId: eventId,
-        },
-        previousAmountPaise,
-        previousEventId
-      );
+      if (editingOffer.isDirectCash) {
+        await updateCashCollectionInFirebase(
+          editingOffer.id,
+          {
+            contributorName: editName.trim() || 'Well Wisher',
+            contributorPhone: cleanPhone,
+            contributorPlace: editPlace.trim(),
+            offerType: editType,
+            quantity: Math.max(1, editQuantity),
+            amountPaise: newAmountPaise,
+            receivingEntity: editReceivingEntity,
+            receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
+            eventName: editEventName,
+            eventId: eventId,
+          },
+          previousAmountPaise,
+          previousEventId,
+          adminUser?.name || 'Super Admin'
+        );
+      } else {
+        await updateOfferInFirebase(
+          editingOffer.id,
+          {
+            contributorName: editName.trim() || 'Well Wisher',
+            contributorPhone: cleanPhone,
+            contributorPlace: editPlace.trim(),
+            offerType: editType,
+            quantity: Math.max(1, editQuantity),
+            totalOfferedPaise: newAmountPaise,
+            status: editStatus as any,
+            receivingEntity: editReceivingEntity,
+            receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
+            eventName: editEventName,
+            eventId: eventId,
+          },
+          previousAmountPaise,
+          previousEventId,
+          adminUser?.name || 'Super Admin'
+        );
+      }
 
       // Local state update for immediate responsiveness
       setTransactions((prev) =>
@@ -326,6 +352,7 @@ export default function OffersLedgerPage() {
               ...item,
               contributorName: editName.trim() || 'Well Wisher',
               phone: cleanPhone,
+              place: editPlace.trim(),
               offerType: editType,
               quantity: Math.max(1, editQuantity),
               amountPaise: newAmountPaise,
@@ -1015,6 +1042,26 @@ export default function OffersLedgerPage() {
                   required
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              {/* Donor Place */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '5px' }}>
+                  Donor Place / മഹല്ല് (സ്ഥലം)
+                </label>
+                <input
+                  type="text"
+                  value={editPlace}
+                  placeholder="e.g. Kuppam / Taliparamba"
+                  onChange={(e) => setEditPlace(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '10px 14px',

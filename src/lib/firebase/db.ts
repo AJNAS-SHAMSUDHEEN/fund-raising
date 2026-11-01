@@ -135,6 +135,7 @@ export async function updateOfferInFirebase(
   updatedData: {
     contributorName?: string;
     contributorPhone?: string;
+    contributorPlace?: string;
     offerType?: OfferType;
     quantity?: number;
     totalOfferedPaise?: number;
@@ -145,12 +146,15 @@ export async function updateOfferInFirebase(
     eventName?: string;
   },
   previousAmountPaise: number,
-  previousEventId?: string
+  previousEventId?: string,
+  adminUserName?: string
 ) {
   try {
     const offerRef = doc(db, 'offers', offerId);
     await updateDoc(offerRef, {
       ...updatedData,
+      lastEditedAt: serverTimestamp(),
+      lastEditedBy: adminUserName || 'Super Admin',
       updatedAt: serverTimestamp(),
     });
 
@@ -294,6 +298,7 @@ export interface DonorOfferRecord {
 export interface DonorHistory {
   phone: string;
   contributorName: string;
+  contributorPlace?: string;
   totalOfferedPaise: number;
   totalPaidPaise: number;
   remainingPaise: number;
@@ -335,6 +340,142 @@ export async function getNextReceiptNumber(): Promise<string> {
     } catch {
       return '1001';
     }
+  }
+}
+
+// 1d. Update an Existing Cash Collection (Admin Correction)
+export async function updateCashCollectionInFirebase(
+  cashId: string,
+  updatedData: {
+    contributorName?: string;
+    contributorPhone?: string;
+    contributorPlace?: string;
+    amountPaise?: number;
+    offerType?: OfferType;
+    quantity?: number;
+    receivingEntity?: ReceivingEntity;
+    receivingEntityName?: string;
+    eventId?: string;
+    eventName?: string;
+    notes?: string;
+    offerId?: string;
+  },
+  previousAmountPaise: number,
+  previousEventId?: string,
+  adminUserName?: string
+) {
+  try {
+    const cashRef = doc(db, 'cashCollections', cashId);
+    const prevCashSnap = await getDoc(cashRef);
+    const prevData = prevCashSnap.exists() ? prevCashSnap.data() : null;
+
+    const newAmountPaise = updatedData.amountPaise ?? previousAmountPaise;
+    const diffPaise = newAmountPaise - previousAmountPaise;
+    const linkedOfferId = updatedData.offerId ?? prevData?.offerId;
+    const isDirectCash = !linkedOfferId || linkedOfferId.startsWith('mock-');
+
+    // 1. Update the cash collection document itself
+    await updateDoc(cashRef, {
+      ...updatedData,
+      lastEditedAt: serverTimestamp(),
+      lastEditedBy: adminUserName || 'Super Admin',
+      updatedAt: serverTimestamp(),
+    });
+
+    // 2. Adjust Campaign-level aggregate verified totals if amount changed
+    if (diffPaise !== 0) {
+      const aggRef = doc(db, 'campaignAggregates', 'main');
+      await setDoc(
+        aggRef,
+        {
+          totalVerifiedPaise: increment(diffPaise),
+          ...(isDirectCash ? { totalOfferedPaise: increment(diffPaise) } : {}),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    // 3. If linked to an offer, update the parent offer's paidPaise and status
+    if (linkedOfferId && !linkedOfferId.startsWith('mock-')) {
+      try {
+        let offerRef = doc(db, 'offers', linkedOfferId);
+        let offerSnap = await getDoc(offerRef);
+        if (!offerSnap.exists()) {
+          const qSnap = await getDocs(query(collection(db, 'offers'), where('offerNumber', '==', linkedOfferId), limit(1)));
+          if (!qSnap.empty) {
+            offerSnap = qSnap.docs[0];
+            offerRef = offerSnap.ref;
+          }
+        }
+        if (offerSnap.exists()) {
+          const offerData = offerSnap.data();
+          const currentPaidPaise = Number(offerData.paidPaise || 0);
+          const totalOfferedPaise = Number(offerData.totalOfferedPaise || 0);
+          const newPaidPaise = Math.max(0, currentPaidPaise + diffPaise);
+          const newStatus = newPaidPaise >= totalOfferedPaise && totalOfferedPaise > 0 ? 'verified' : (newPaidPaise > 0 ? 'partial' : 'pledged');
+
+          await setDoc(
+            offerRef,
+            {
+              paidPaise: newPaidPaise,
+              status: newStatus,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      } catch (e) {
+        console.warn('Could not update parent offer status during cash edit:', e);
+      }
+    }
+
+    // 4. Handle event-level adjustments
+    const currentEventId = updatedData.eventId ?? previousEventId;
+    if (previousEventId && updatedData.eventId && previousEventId !== updatedData.eventId) {
+      if (previousEventId !== 'general') {
+        const prevEventRef = doc(db, 'events', previousEventId);
+        await setDoc(
+          prevEventRef,
+          {
+            verifiedPaise: increment(-previousAmountPaise),
+            ...(isDirectCash ? { totalPaise: increment(-previousAmountPaise) } : {}),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+      if (updatedData.eventId !== 'general') {
+        const newEventRef = doc(db, 'events', updatedData.eventId);
+        await setDoc(
+          newEventRef,
+          {
+            name: updatedData.eventName || updatedData.eventId,
+            verifiedPaise: increment(newAmountPaise),
+            ...(isDirectCash ? { totalPaise: increment(newAmountPaise) } : {}),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } else if (diffPaise !== 0 && currentEventId && currentEventId !== 'general') {
+      const eventRef = doc(db, 'events', currentEventId);
+      await setDoc(
+        eventRef,
+        {
+          name: updatedData.eventName || currentEventId,
+          verifiedPaise: increment(diffPaise),
+          ...(isDirectCash ? { totalPaise: increment(diffPaise) } : {}),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error updating cash collection in Firebase:', error);
+    throw error;
   }
 }
 
@@ -475,6 +616,7 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
   const result: DonorHistory = {
     phone: cleanPhone,
     contributorName: 'Well Wisher',
+    contributorPlace: '',
     totalOfferedPaise: 0,
     totalPaidPaise: 0,
     remainingPaise: 0,
@@ -495,6 +637,9 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
       const data = docSnap.data();
       if (data.contributorName && result.contributorName === 'Well Wisher') {
         result.contributorName = data.contributorName;
+      }
+      if (data.contributorPlace && !result.contributorPlace) {
+        result.contributorPlace = data.contributorPlace;
       }
       const total = Number(data.totalOfferedPaise) || 0;
       const paid = Number(data.paidPaise) || 0;
@@ -523,6 +668,9 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
       const data = docSnap.data();
       if (data.contributorName && result.contributorName === 'Well Wisher') {
         result.contributorName = data.contributorName;
+      }
+      if (data.contributorPlace && !result.contributorPlace) {
+        result.contributorPlace = data.contributorPlace;
       }
       result.recentCashPayments.push({
         id: docSnap.id,

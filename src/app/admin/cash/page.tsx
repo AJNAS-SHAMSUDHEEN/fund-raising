@@ -78,9 +78,9 @@ export default function CashCollectionPOSPage() {
   const [receivingEntityName, setReceivingEntityName] = useState('');
   const [eventsList, setEventsList] = useState<{ id: string; name: string }[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>('general');
-  const [offerType, setOfferType] = useState<OfferType>('musalla');
+  const [offerType, setOfferType] = useState<OfferType>('custom');
   const [quantity, setQuantity] = useState<number>(1);
-  const [cashAmountRupees, setCashAmountRupees] = useState<number>(10360);
+  const [cashAmountRupees, setCashAmountRupees] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -152,6 +152,9 @@ export default function CashCollectionPOSPage() {
       const history = await getDonorHistoryByPhone(phoneToLookup);
       setDonorHistory(history);
       setContributorName(history.contributorName !== 'Well Wisher' ? history.contributorName : '');
+      if (history.contributorPlace) {
+        setContributorPlace(history.contributorPlace);
+      }
 
       // If donor has pending pledges with balance, auto-focus the first one
       const pendingWithBalance = history.offers.find((o) => o.remainingPaise > 0);
@@ -159,8 +162,8 @@ export default function CashCollectionPOSPage() {
         selectOfferToPay(pendingWithBalance);
       } else {
         setSelectedOffer(null);
-        setOfferType('musalla');
-        setCashAmountRupees(10360);
+        setOfferType('custom');
+        setCashAmountRupees('');
       }
     } catch (err) {
       console.error('Donor lookup error:', err);
@@ -174,7 +177,9 @@ export default function CashCollectionPOSPage() {
     setHasSearched(false);
     setSelectedOffer(null);
     setContributorName('');
-    setCashAmountRupees(10360);
+    setContributorPlace('');
+    setOfferType('custom');
+    setCashAmountRupees('');
   };
 
   const selectOfferToPay = (offer: DonorOfferRecord) => {
@@ -188,9 +193,9 @@ export default function CashCollectionPOSPage() {
 
   const selectFreshContribution = () => {
     setSelectedOffer(null);
-    setOfferType('musalla');
+    setOfferType('custom');
     setQuantity(1);
-    setCashAmountRupees(10360);
+    setCashAmountRupees('');
   };
 
   // Synchronize unit rate calculations when user manually alters units
@@ -199,6 +204,7 @@ export default function CashCollectionPOSPage() {
     setSelectedOffer(null);
     if (type === 'cent') {
       setCashAmountRupees(INITIAL_CAMPAIGN.centRatePaise / 100);
+      setQuantity(1);
     } else if (type === 'sqft') {
       setCashAmountRupees((INITIAL_CAMPAIGN.sqFtRatePaise * 10) / 100);
       setQuantity(10);
@@ -206,7 +212,7 @@ export default function CashCollectionPOSPage() {
       setCashAmountRupees(INITIAL_CAMPAIGN.musallaRatePaise / 100);
       setQuantity(1);
     } else {
-      setCashAmountRupees(5000);
+      setCashAmountRupees('');
       setQuantity(1);
     }
   };
@@ -221,8 +227,9 @@ export default function CashCollectionPOSPage() {
       return;
     }
 
-    if (!cashAmountRupees || cashAmountRupees <= 0) {
-      alert('Please enter a valid cash amount in Rupees');
+    const numAmount = typeof cashAmountRupees === 'string' ? parseFloat(cashAmountRupees) : cashAmountRupees;
+    if (!numAmount || isNaN(numAmount) || numAmount <= 0) {
+      alert('ദയവായി ലഭിച്ച ക്യാഷ് തുക നൽകുക (Please enter the cash amount in Rupees)');
       return;
     }
 
@@ -242,7 +249,7 @@ export default function CashCollectionPOSPage() {
 
 
     const generatedReceiptNumber = await getNextReceiptNumber();
-    const calculatedPaise = Math.round(cashAmountRupees * 100);
+    const calculatedPaise = Math.round(numAmount * 100);
 
     const newReceipt = {
       receiptNumber: generatedReceiptNumber,
@@ -577,13 +584,36 @@ export default function CashCollectionPOSPage() {
               }}>
                 <div>
                   <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803D', textTransform: 'uppercase' }}>
-                    Contributor Name
+                    Contributor Name (പേര്)
                   </span>
                   <input
                     type="text"
                     value={contributorName}
                     placeholder="Enter name (or leave for Well Wisher)"
                     onChange={(e) => setContributorName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      marginTop: '4px',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #86EFAC',
+                      fontWeight: 700,
+                      color: '#14532D',
+                      background: '#FFFFFF',
+                      fontSize: '0.95rem',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803D', textTransform: 'uppercase' }}>
+                    Donor Place / മഹല്ല് (സ്ഥലം)
+                  </span>
+                  <input
+                    type="text"
+                    value={contributorPlace}
+                    placeholder="e.g. Kuppam / Taliparamba"
+                    onChange={(e) => setContributorPlace(e.target.value)}
                     style={{
                       width: '100%',
                       marginTop: '4px',
@@ -922,7 +952,7 @@ export default function CashCollectionPOSPage() {
                       Category / Unit Type
                     </label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                      {(['musalla', 'sqft', 'cent', 'custom'] as OfferType[]).map((t) => (
+                      {(['custom', 'musalla', 'sqft', 'cent'] as OfferType[]).map((t) => (
                         <button
                           key={t}
                           type="button"
@@ -934,12 +964,11 @@ export default function CashCollectionPOSPage() {
                             background: offerType === t ? 'var(--brand-100)' : '#FFFFFF',
                             fontWeight: 700,
                             fontSize: '0.78rem',
-                            textTransform: 'capitalize',
                             color: offerType === t ? 'var(--brand-900)' : 'var(--text-muted)',
                             cursor: 'pointer',
                           }}
                         >
-                          {t}
+                          {t === 'custom' ? 'By Amount' : t === 'musalla' ? 'Musalla' : t === 'sqft' ? 'Sq Ft' : 'Cent'}
                         </button>
                       ))}
                     </div>
@@ -968,8 +997,9 @@ export default function CashCollectionPOSPage() {
                       min={1}
                       step="any"
                       required
-                      value={cashAmountRupees || ''}
-                      onChange={(e) => setCashAmountRupees(parseFloat(e.target.value) || 0)}
+                      placeholder="ലഭിച്ച തുക ഇവിടെ നൽകുക (Enter amount)"
+                      value={cashAmountRupees}
+                      onChange={(e) => setCashAmountRupees(e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                       style={{
                         width: '100%',
                         padding: '12px 14px 12px 34px',
@@ -1046,7 +1076,7 @@ export default function CashCollectionPOSPage() {
                     boxShadow: '0 4px 14px rgba(197, 160, 89, 0.3)',
                   }}
                 >
-                  {isSubmitting ? 'Recording...' : `Record ₹${cashAmountRupees.toLocaleString('en-IN')} & Issue Provisional Receipt →`}
+                  {isSubmitting ? 'Recording...' : `Record ₹${(typeof cashAmountRupees === 'number' && cashAmountRupees > 0) ? cashAmountRupees.toLocaleString('en-IN') : '0'} & Issue Provisional Receipt →`}
                 </button>
               </div>
             </form>

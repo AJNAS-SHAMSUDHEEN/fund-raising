@@ -7,7 +7,7 @@ import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/
 import { db } from '@/lib/firebase/client';
 import { numberToWordsINR } from '@/lib/calculations/currency';
 import { buildWhatsAppLink } from '@/lib/utils/phone';
-import { Printer, ArrowLeft, Share2, CheckCircle2 } from 'lucide-react';
+import { Printer, ArrowLeft, Share2, CheckCircle2, Download, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 export default function ReceiptPage() {
   const params = useParams();
@@ -176,6 +176,136 @@ export default function ReceiptPage() {
       : offerType === 'sqft' ? `Salafi Masjid Land Acquisition Fund (${quantity} Sq Ft Sponsorship)`
       : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
 
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
+  const [isSharingWhatsApp, setIsSharingWhatsApp] = useState(false);
+
+  const generateReceiptCanvas = async (): Promise<HTMLCanvasElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = '/receipt/receipt.png';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1600;
+        canvas.height = 779;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+
+        // Draw background template
+        ctx.drawImage(img, 0, 0, 1600, 779);
+
+        // 1. Date (top: 34.2%, left: 77.5%)
+        ctx.fillStyle = '#0F172A';
+        ctx.font = '700 22px "Roboto", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(receiptDate, 1240, 266);
+
+        // 2. ER.No. (top: 40.0%, left: 12.8%)
+        ctx.fillStyle = '#B91C1C';
+        ctx.font = '900 34px "Roboto", monospace';
+        ctx.fillText(erNumber, 205, 312);
+
+        // 3. Contributor Name (top: 46.0%, left: 30.5%)
+        ctx.fillStyle = '#0F172A';
+        ctx.font = '700 28px "Roboto", sans-serif';
+        const displayName = donorName + (donorPlace ? ` (${donorPlace})` : '');
+        ctx.fillText(displayName, 488, 358);
+
+        // 4. Amount of Rupees in words (top: 55.2%, left: 31.0%)
+        ctx.fillStyle = '#0F172A';
+        ctx.font = 'italic 600 23px "Roboto", sans-serif';
+        ctx.fillText(amountWords, 496, 430);
+
+        // 5. Purpose (top: 65.8%, left: 24.5%)
+        ctx.fillStyle = '#0369A1';
+        ctx.font = '600 20px "Roboto", sans-serif';
+        ctx.fillText(purposeText, 392, 512);
+
+        // 6. Rupee Box Amount (centered at left 21.4%, top 81.8%)
+        ctx.fillStyle = '#0F172A';
+        ctx.font = '800 36px "Roboto", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`₹ ${formattedAmountINR}/-`, 342, 638);
+
+        resolve(canvas);
+      };
+      img.onerror = (e) => reject(e);
+    });
+  };
+
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await generateReceiptCanvas();
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+      const { jsPDF } = await import('jspdf');
+      // Exact landscape card format: 160mm x 77.9mm (matching 1600x779 ratio)
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: [160, 77.9],
+      });
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, 160, 77.9);
+      pdf.save(`Official-Receipt-${erNumber}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed, falling back to print:', err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleDownloadJPG = async () => {
+    try {
+      setIsGeneratingJpg(true);
+      const canvas = await generateReceiptCanvas();
+      const link = document.createElement('a');
+      link.download = `Official-Receipt-${erNumber}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+    } catch (err) {
+      console.error('JPG generation failed:', err);
+    } finally {
+      setIsGeneratingJpg(false);
+    }
+  };
+
+  const handleShareWhatsApp = async () => {
+    try {
+      setIsSharingWhatsApp(true);
+      const canvas = await generateReceiptCanvas();
+      // On mobile browsers supporting Web Share with files:
+      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        if (blob) {
+          const file = new File([blob], `Receipt-${erNumber}.jpg`, { type: 'image/jpeg' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: `Official E-Receipt #${erNumber}`,
+              text: whatsappMessage,
+            });
+            setIsSharingWhatsApp(false);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Web share failed or was dismissed, falling back to direct link:', e);
+    } finally {
+      setIsSharingWhatsApp(false);
+    }
+
+    // Direct WhatsApp Web / mobile chat fallback link
+    window.open(buildWhatsAppLink(donorPhone, whatsappMessage), '_blank');
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -234,11 +364,11 @@ export default function ReceiptPage() {
             <span>Back to Home</span>
           </Link>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <a
-              href={buildWhatsAppLink(donorPhone, whatsappMessage)}
-              target="_blank"
-              rel="noopener noreferrer"
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={handleShareWhatsApp}
+              disabled={isSharingWhatsApp}
               className="btn btn-outline"
               style={{
                 display: 'inline-flex',
@@ -251,14 +381,63 @@ export default function ReceiptPage() {
                 borderColor: '#86EFAC',
                 borderRadius: '8px',
                 border: '1.5px solid #86EFAC',
-                textDecoration: 'none',
+                cursor: 'pointer',
                 fontWeight: 700,
                 boxShadow: '0 2px 6px rgba(22, 163, 74, 0.1)',
               }}
+              title="Share receipt via WhatsApp (with image attachment on mobile)"
             >
-              <Share2 size={16} />
+              {isSharingWhatsApp ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
               <span>Share WhatsApp</span>
-            </a>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPdf}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                fontSize: '0.88rem',
+                color: '#FFFFFF',
+                background: 'linear-gradient(135deg, #B91C1C 0%, #991B1B 100%)',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 700,
+                cursor: isGeneratingPdf ? 'wait' : 'pointer',
+                boxShadow: '0 4px 12px rgba(185, 28, 28, 0.25)',
+              }}
+              title="Download high-resolution Receipt-Only PDF"
+            >
+              {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              <span>{isGeneratingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDownloadJPG}
+              disabled={isGeneratingJpg}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 18px',
+                fontSize: '0.88rem',
+                color: '#1E293B',
+                background: '#FFFFFF',
+                border: '1.5px solid #CBD5E1',
+                borderRadius: '8px',
+                fontWeight: 700,
+                cursor: isGeneratingJpg ? 'wait' : 'pointer',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
+              }}
+              title="Download high-resolution Receipt JPG Image"
+            >
+              {isGeneratingJpg ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
+              <span>{isGeneratingJpg ? 'Saving...' : 'Download Image'}</span>
+            </button>
 
             <button
               type="button"
@@ -267,7 +446,7 @@ export default function ReceiptPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '9px 22px',
+                padding: '9px 20px',
                 fontSize: '0.88rem',
                 color: '#FFFFFF',
                 background: 'linear-gradient(135deg, #0369A1 0%, #0C4A6E 100%)',
@@ -279,7 +458,7 @@ export default function ReceiptPage() {
               }}
             >
               <Printer size={16} />
-              <span>Print E-Receipt</span>
+              <span>Print</span>
             </button>
           </div>
         </div>

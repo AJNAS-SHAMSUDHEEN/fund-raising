@@ -28,7 +28,13 @@ import {
   Building,
   Building2,
   ShieldCheck,
+  Edit3,
+  X,
+  Save,
+  Check,
 } from 'lucide-react';
+import { updateCashCollectionInFirebase, updateOfferInFirebase } from '@/lib/firebase/db';
+import { OfferType, ReceivingEntity } from '@/lib/types';
 
 type DatePreset = 'all' | 'today' | 'week' | 'month' | 'custom';
 
@@ -46,6 +52,110 @@ export default function AdminReportsPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | 'cash' | 'offer'>('all');
   const [receivingFilter, setReceivingFilter] = useState<'all' | 'unit' | 'district' | 'external'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Transaction Edit Modal State (Super Admin Only)
+  const [editingItem, setEditingItem] = useState<ReportItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPlace, setEditPlace] = useState('');
+  const [editType, setEditType] = useState<OfferType>('custom');
+  const [editQuantity, setEditQuantity] = useState(1);
+  const [editAmountINR, setEditAmountINR] = useState('');
+  const [editEventName, setEditEventName] = useState('General Campaign');
+  const [editReceivingEntity, setEditReceivingEntity] = useState<ReceivingEntity>('unit');
+  const [editReceivingEntityName, setEditReceivingEntityName] = useState('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState<string | null>(null);
+
+  const openEditModal = (item: ReportItem) => {
+    setEditingItem(item);
+    setEditName(item.contributorName);
+    setEditPhone(item.phone || '');
+    setEditPlace(item.place || '');
+    setEditType((item.category as OfferType) || 'custom');
+    setEditQuantity(item.quantity || 1);
+    setEditAmountINR((item.amountPaise / 100).toString());
+    setEditEventName(item.collectorOrVenue || 'General Campaign');
+    setEditReceivingEntity((item.receivingEntity as ReceivingEntity) || 'unit');
+    setEditReceivingEntityName(item.receivingEntityName || '');
+    setEditError(null);
+  };
+
+  const handleSaveTransactionEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    const numAmount = parseFloat(editAmountINR);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setEditError('Please enter a valid donation amount in Rupees.');
+      return;
+    }
+
+    const cleanPhone = editPhone.trim();
+
+    try {
+      setIsSubmittingEdit(true);
+      setEditError(null);
+
+      const newAmountPaise = Math.round(numAmount * 100);
+      const previousAmountPaise = editingItem.amountPaise;
+
+      let eventId = 'general';
+      if (editEventName.toLowerCase().includes('ulikkal')) eventId = 'ulikkal-event-2026';
+      else if (editEventName.toLowerCase().includes('kuppam')) eventId = 'kuppam-gathering-2026';
+      else if (editEventName !== 'General Campaign') eventId = editEventName.toLowerCase().replace(/\s+/g, '-');
+
+      if (editingItem.type === 'cash') {
+        await updateCashCollectionInFirebase(
+          editingItem.id,
+          {
+            contributorName: editName.trim() || 'Well Wisher',
+            contributorPhone: cleanPhone,
+            contributorPlace: editPlace.trim(),
+            offerType: editType,
+            quantity: Math.max(1, editQuantity),
+            amountPaise: newAmountPaise,
+            receivingEntity: editReceivingEntity,
+            receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
+            eventName: editEventName,
+            eventId: eventId,
+          },
+          previousAmountPaise,
+          'general',
+          adminUser?.name || 'Super Admin'
+        );
+      } else {
+        await updateOfferInFirebase(
+          editingItem.id,
+          {
+            contributorName: editName.trim() || 'Well Wisher',
+            contributorPhone: cleanPhone,
+            contributorPlace: editPlace.trim(),
+            offerType: editType,
+            quantity: Math.max(1, editQuantity),
+            totalOfferedPaise: newAmountPaise,
+            receivingEntity: editReceivingEntity,
+            receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
+            eventName: editEventName,
+            eventId: eventId,
+          },
+          previousAmountPaise,
+          'general',
+          adminUser?.name || 'Super Admin'
+        );
+      }
+
+      setEditingItem(null);
+      setEditSuccess(`Transaction ${editingItem.referenceNumber} successfully updated.`);
+      setTimeout(() => setEditSuccess(null), 4000);
+    } catch (err: any) {
+      console.error('Error updating transaction:', err);
+      setEditError(err.message || 'Failed to update transaction.');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   // 1. Fetch live data from Firestore
   useEffect(() => {
@@ -1115,6 +1225,9 @@ export default function AdminReportsPage() {
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Type</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600 }}>Collector / Desk</th>
                   <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Amount</th>
+                  {adminUser?.role === 'super_admin' && (
+                    <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'center' }}>Action</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1241,6 +1354,28 @@ export default function AdminReportsPage() {
                       >
                         {formatINRFromPaise(item.amountPaise)}
                       </td>
+                      {adminUser?.role === 'super_admin' && (
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(item)}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '5px 10px',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              gap: '4px',
+                              borderColor: '#CBD5E1',
+                              color: 'var(--brand-900)',
+                              background: '#FFFFFF',
+                            }}
+                            title="Edit this transaction (തിരുത്തുക)"
+                          >
+                            <Edit3 size={13} color="var(--brand-800)" />
+                            <span>Edit</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -1265,6 +1400,264 @@ export default function AdminReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Super Admin Edit Transaction Modal */}
+      {editingItem && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '20px',
+            maxWidth: '540px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: '24px 28px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              borderBottom: '1px solid var(--border-light)',
+              paddingBottom: '14px',
+              marginBottom: '18px',
+            }}>
+              <div>
+                <span className="badge badge-gold" style={{ fontSize: '0.7rem', marginBottom: '4px' }}>
+                  {editingItem.referenceNumber} ({editingItem.type === 'cash' ? 'Cash Collection' : 'Offer Pledge'})
+                </span>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-900)', margin: 0 }}>
+                  Edit Transaction (തിരുത്തുക)
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Adjust details or correct mistakes. Totals and breakdowns update automatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                style={{ padding: '6px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {editError && (
+              <div style={{
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                marginBottom: '16px',
+                color: '#DC2626',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+              }}>
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTransactionEdit}>
+              {/* Contributor Name */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '5px' }}>
+                  Contributor Name (ദാതാവിന്റെ പേര്) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              {/* Donor Place */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '5px' }}>
+                  Donor Place / മഹല്ല് (സ്ഥലം)
+                </label>
+                <input
+                  type="text"
+                  value={editPlace}
+                  placeholder="e.g. Kuppam / Taliparamba"
+                  onChange={(e) => setEditPlace(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              {/* Phone */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '5px' }}>
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  placeholder="Enter phone number"
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              {/* Amount */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '5px' }}>
+                  Amount in Rupees (തുക ₹) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  step="any"
+                  value={editAmountINR}
+                  onChange={(e) => setEditAmountINR(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '2px solid var(--brand-700)',
+                    fontSize: '1.15rem',
+                    fontWeight: 800,
+                    color: 'var(--brand-900)',
+                  }}
+                />
+              </div>
+
+              {/* Receiving Committee */}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-dark)', display: 'block', marginBottom: '5px' }}>
+                  Receiving Committee / Account (സ്വീകരിച്ച അക്കൗണ്ട്)
+                </label>
+                <select
+                  value={editReceivingEntity}
+                  onChange={(e) => setEditReceivingEntity(e.target.value as ReceivingEntity)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-medium)',
+                    fontSize: '0.88rem',
+                    color: 'var(--brand-900)',
+                    fontWeight: 600,
+                  }}
+                >
+                  <option value="unit">കുപ്പം യൂണിറ്റ് കമ്മിറ്റി (Unit Committee)</option>
+                  <option value="district">ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട് (District Committee)</option>
+                  <option value="external">മറ്റ് എക്സ്റ്റേണൽ കമ്മിറ്റികൾ (External)</option>
+                </select>
+
+                {editReceivingEntity === 'external' && (
+                  <input
+                    type="text"
+                    required
+                    placeholder="External Committee Name"
+                    value={editReceivingEntityName}
+                    onChange={(e) => setEditReceivingEntityName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      marginTop: '8px',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #8B5CF6',
+                      fontSize: '0.88rem',
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-medium)',
+                    background: '#FFFFFF',
+                    color: 'var(--text-muted)',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  className="btn btn-primary"
+                  style={{
+                    flex: 2,
+                    padding: '12px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Save size={16} />
+                  <span>{isSubmittingEdit ? 'Saving Changes...' : 'Save & Adjust Totals'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Success Notification */}
+      {editSuccess && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: '#064E3B',
+          color: '#FFFFFF',
+          padding: '14px 20px',
+          borderRadius: '12px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          zIndex: 1100,
+          fontWeight: 700,
+          fontSize: '0.9rem',
+        }}>
+          <Check size={18} color="#86EFAC" />
+          <span>{editSuccess}</span>
+        </div>
+      )}
     </div>
   );
 }
