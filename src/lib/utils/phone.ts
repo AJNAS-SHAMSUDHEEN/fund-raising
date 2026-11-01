@@ -92,3 +92,4 @@ export function buildWhatsAppLink(phone: string, text: string): string {
   const fullDial = phone.startsWith('+') ? clean : (clean.length === 10 ? `91${clean}` : clean);
   return `https://wa.me/${fullDial}?text=${encodeURIComponent(text)}`;
 }
+

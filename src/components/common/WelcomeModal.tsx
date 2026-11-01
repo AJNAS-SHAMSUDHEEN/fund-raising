@@ -141,7 +141,7 @@ export default function WelcomeModal() {
             <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, color: 'var(--brand-900)', marginBottom: '6px' }}>
               Mobile Number <span style={{ color: 'red' }}>*</span>
             </label>
-            <div style={{ display: 'flex', gap: '0' }}>
+            <div style={{ display: 'flex', gap: '0', width: '100%', maxWidth: '100%' }}>
               <CountryCodeSelect
                 value={countryCode}
                 onChange={setCountryCode}
@@ -156,12 +156,15 @@ export default function WelcomeModal() {
                 onChange={(e) => setPhone(e.target.value)}
                 style={{
                   flex: 1,
+                  minWidth: 0,
+                  width: '100%',
                   padding: '12px 14px',
                   borderRadius: '0 12px 12px 0',
                   border: '1.5px solid var(--border-medium)',
                   borderLeft: 'none',
                   fontSize: '0.95rem',
                   outline: 'none',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>

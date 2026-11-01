@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { recordCashToFirebase, getDonorHistoryByPhone, getNextReceiptNumber, DonorHistory, DonorOfferRecord } from '@/lib/firebase/db';
 import CountryCodeSelect from '@/components/common/CountryCodeSelect';
-import { COUNTRY_CODES, buildStoredPhoneNumber, validatePhoneNumber } from '@/lib/utils/phone';
+import { COUNTRY_CODES, buildStoredPhoneNumber, validatePhoneNumber, buildWhatsAppLink } from '@/lib/utils/phone';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 
 export default function CashCollectionPOSPage() {
@@ -122,13 +122,25 @@ export default function CashCollectionPOSPage() {
     }
   };
 
-  // Auto-search when 10 digits are entered
+  const handleCountryCodeChange = (newCode: string) => {
+    setCountryCode(newCode);
+    const cleanDigits = phoneInput.replace(/\D/g, '');
+    if (cleanDigits) {
+      if (validatePhoneNumber(cleanDigits, newCode)) {
+        performLookup(buildStoredPhoneNumber(cleanDigits, newCode));
+      } else {
+        resetLookup();
+      }
+    }
+  };
+
+  // Auto-search when valid phone number is entered for selected country
   const handlePhoneChange = async (val: string) => {
     setPhoneInput(val);
-    const clean = val.replace(/\D/g, '').slice(-10);
-    if (clean.length === 10) {
-      performLookup(clean);
-    } else if (clean.length === 0) {
+    const cleanDigits = val.replace(/\D/g, '');
+    if (validatePhoneNumber(cleanDigits, countryCode)) {
+      performLookup(buildStoredPhoneNumber(cleanDigits, countryCode));
+    } else if (cleanDigits.length === 0) {
       resetLookup();
     }
   };
@@ -201,9 +213,11 @@ export default function CashCollectionPOSPage() {
 
   const handleRecordCash = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = hasNoPhone ? '' : phoneInput.replace(/\D/g, '').slice(-10);
-    if (!hasNoPhone && (!cleanPhone || cleanPhone.length !== 10)) {
-      alert('Please enter a valid 10-digit mobile number, or check "Donor has no mobile number"');
+    const storedPhone = hasNoPhone ? '' : buildStoredPhoneNumber(phoneInput, countryCode);
+    if (!hasNoPhone && !validatePhoneNumber(phoneInput, countryCode)) {
+      alert(countryCode === '+91'
+        ? 'Please enter a valid 10-digit mobile number, or check "Donor has no mobile number"'
+        : 'Please enter a valid phone number for the selected country, or check "Donor has no mobile number"');
       return;
     }
 
@@ -233,7 +247,7 @@ export default function CashCollectionPOSPage() {
     const newReceipt = {
       receiptNumber: generatedReceiptNumber,
       contributorName: resolvedContributorName,
-      contributorPhone: cleanPhone,
+      contributorPhone: storedPhone,
       contributorPlace: contributorPlace.trim(),
       hasNoPhone,
       receivingEntity,
@@ -254,7 +268,7 @@ export default function CashCollectionPOSPage() {
       await recordCashToFirebase({
         receiptNumber: newReceipt.receiptNumber,
         contributorName: resolvedContributorName,
-        contributorPhone: cleanPhone,
+        contributorPhone: storedPhone,
         contributorPlace: contributorPlace.trim(),
         hasNoPhone,
         receivingEntity,
@@ -350,25 +364,28 @@ export default function CashCollectionPOSPage() {
                 opacity: hasNoPhone ? 0.75 : 1,
                 transition: 'border-color 0.2s ease',
               }}>
-                <span style={{
-                  fontSize: '1.15rem',
-                  fontWeight: 800,
-                  color: hasNoPhone ? '#94A3B8' : 'var(--brand-800)',
-                  marginRight: '10px',
-                  borderRight: '1px solid var(--border-medium)',
-                  paddingRight: '10px',
-                }}>
-                  +91
-                </span>
+                <CountryCodeSelect
+                  value={countryCode}
+                  onChange={handleCountryCodeChange}
+                  disabled={hasNoPhone}
+                  style={{
+                    height: '42px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    borderRight: '1px solid var(--border-medium, #CBD5E1)',
+                    marginRight: '6px',
+                  }}
+                />
                 <input
                   type="tel"
-                  maxLength={10}
+                  maxLength={15}
                   disabled={hasNoPhone}
-                  placeholder={hasNoPhone ? "മൊബൈൽ നമ്പർ ലഭ്യമല്ല (Direct Cash Entry)" : "Enter 10-digit mobile number (e.g. 9847123456)"}
+                  placeholder={hasNoPhone ? "മൊബൈൽ നമ്പർ ലഭ്യമല്ല (Direct Cash Entry)" : countryCode === '+91' ? "Enter 10-digit mobile number (e.g. 9847123456)" : "Enter mobile number"}
                   value={phoneInput}
                   onChange={(e) => handlePhoneChange(e.target.value)}
                   style={{
                     flex: 1,
+                    minWidth: 0,
                     border: 'none',
                     background: 'transparent',
                     fontSize: '1.25rem',
@@ -401,11 +418,11 @@ export default function CashCollectionPOSPage() {
               </div>
               {!hasNoPhone && (
                 <button
-type="button"
-onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
-                  disabled={isSearching || phoneInput.length < 10}
+                  type="button"
+                  onClick={() => performLookup(buildStoredPhoneNumber(phoneInput, countryCode))}
+                  disabled={isSearching || !validatePhoneNumber(phoneInput, countryCode)}
                   className="btn btn-primary"
-                  style={{ padding: '14px 22px', fontSize: '0.95rem', fontWeight: 700, gap: '6px' }}
+                  style={{ padding: '14px 22px', fontSize: '0.95rem', fontWeight: 700, gap: '6px', flexShrink: 0 }}
                 >
                   <Search size={18} />
                   <span>{isSearching ? 'Searching...' : 'Search'}</span>
@@ -1162,11 +1179,12 @@ onClick={() => performLookup(phoneInput.replace(/\D/g, '').slice(-10))}
 
             {provisionalReceipt.contributorPhone ? (
               <a
-                href={`https://wa.me/91${provisionalReceipt.contributorPhone}?text=${encodeURIComponent(
+                href={buildWhatsAppLink(
+                  provisionalReceipt.contributorPhone,
                   `Wisdom Islamic Organization Kuppam Unit - Salafi Masjid Land Acquisition\n\nReceived with thanks: ${formatINRFromPaise(
                     provisionalReceipt.amountPaise
                   )} as Cash Collection.\nER.No: ${provisionalReceipt.receiptNumber}\nEvent: ${provisionalReceipt.eventName}`
-                )}`}
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-outline"

@@ -1384,7 +1384,7 @@ function OfferWorkflowContent() {
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--brand-900)', marginBottom: '6px' }}>
                   Mobile Number (മൊബൈൽ നമ്പർ - നിർബന്ധം) *
                 </label>
-                <div style={{ display: 'flex', gap: '0' }}>
+                <div style={{ display: 'flex', gap: '0', width: '100%', maxWidth: '100%' }}>
                   <CountryCodeSelect
                     value={countryCode}
                     onChange={(val) => {
@@ -1405,6 +1405,9 @@ function OfferWorkflowContent() {
                     }}
                     style={{
                       flex: 1,
+                      minWidth: 0,
+                      width: '100%',
+                      boxSizing: 'border-box',
                       padding: '12px 14px',
                       borderRadius: '0 10px 10px 0',
                       border: errors.phone ? '2px solid var(--status-danger)' : '1px solid #CBD5E1',
