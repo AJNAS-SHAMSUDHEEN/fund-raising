@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { collection, doc, getDoc, getDocs, setDoc, query, orderBy, where, limit, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
+import { getNextReceiptNumber } from '@/lib/firebase/db';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import {
@@ -67,6 +68,16 @@ export default function CashVerificationPage() {
     try {
       const cashRef = doc(db, 'cashCollections', id);
       const cashSnap = await getDoc(cashRef);
+      if (cashSnap.exists()) {
+        const cashData = cashSnap.data();
+        if (!cashData.erNo || !cashData.receiptNumber || isNaN(Number(cashData.receiptNumber))) {
+          const nextEr = await getNextReceiptNumber();
+          await updateDoc(cashRef, {
+            erNo: Number(nextEr),
+            receiptNumber: nextEr,
+          });
+        }
+      }
 
       await updateDoc(cashRef, {
         status: 'verified',
@@ -342,7 +353,7 @@ export default function CashVerificationPage() {
                     </td>
                     <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                       <a
-                        href={`/receipt/RCP-2026-000101?donor=${encodeURIComponent(item.contributorName || 'Well Wisher')}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}`}
+                        href={`/receipt/${item.erNo || item.receiptNumber || item.id}?donor=${encodeURIComponent(item.contributorName || 'Well Wisher')}&phone=${item.contributorPhone || ''}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}&er=${item.erNo || item.receiptNumber || ''}&account=${item.receivingEntity || 'unit'}`}
                         target="_blank"
                         className="btn btn-outline"
                         style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }}

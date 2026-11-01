@@ -311,19 +311,19 @@ export interface DonorHistory {
 // 2a. Sequential Atomic Receipt Number Generator (Starting from 1001)
 export async function getNextReceiptNumber(): Promise<string> {
   try {
-    const counterRef = doc(db, 'systemCounters', 'receiptCounter');
+    const aggregateRef = doc(db, 'campaignAggregates', 'main');
     const nextVal = await runTransaction(db, async (transaction) => {
-      const snap = await transaction.get(counterRef);
+      const snap = await transaction.get(aggregateRef);
       let nextNumber = 1001;
       if (snap.exists()) {
-        const current = snap.data().current;
+        const current = snap.data().lastReceiptNumber;
         if (typeof current === 'number' && current >= 1001) {
           nextNumber = current + 1;
         } else {
           nextNumber = 1001;
         }
       }
-      transaction.set(counterRef, { current: nextNumber, updatedAt: serverTimestamp() }, { merge: true });
+      transaction.set(aggregateRef, { lastReceiptNumber: nextNumber, updatedAt: serverTimestamp() }, { merge: true });
       return nextNumber;
     });
     return String(nextVal);
@@ -359,6 +359,7 @@ export async function recordCashToFirebase(cashData: {
   try {
     const docRef = await addDoc(collection(db, 'cashCollections'), {
       ...cashData,
+      erNo: Number(cashData.receiptNumber) || undefined,
       contributorName: cashData.contributorName?.trim() || 'Well Wisher',
       contributorPhone: cashData.contributorPhone || '',
       contributorPlace: cashData.contributorPlace?.trim() || '',

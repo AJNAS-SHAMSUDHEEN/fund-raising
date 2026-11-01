@@ -1,42 +1,166 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase/client';
 import { numberToWordsINR } from '@/lib/calculations/currency';
-import { Printer, ArrowLeft, Share2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Printer, ArrowLeft, Share2, CheckCircle2 } from 'lucide-react';
 
 export default function ReceiptPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
   const rawId = (params?.id as string) || '';
-  // Auto-generate / extract ER Number starting from 1001
-  const erNoMatch = rawId.match(/\d{4,}/);
-  const erNumber = erNoMatch ? erNoMatch[0] : (searchParams.get('er') || rawId || '1001');
+  const [dbData, setDbData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const donorName = searchParams.get('donor') || 'Contributor';
-  const donorPhone = searchParams.get('phone') || '';
-  const donorPlace = searchParams.get('place') || '';
-  const amountPaise = parseInt(searchParams.get('amount') || '0', 10);
-  const paidPaise = parseInt(searchParams.get('paid') || '0', 10);
-  const offerType = searchParams.get('type') || 'cash';
-  const quantity = parseInt(searchParams.get('qty') || '1', 10);
-  const statusParam = searchParams.get('status') || 'verified';
-  const receivingEntity = searchParams.get('account') || 'unit';
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchReceiptData() {
+      if (!rawId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // 1. Try cashCollections by doc ID
+        const cashDocRef = doc(db, 'cashCollections', rawId);
+        const cashSnap = await getDoc(cashDocRef);
+        if (cashSnap.exists()) {
+          if (isMounted) {
+            setDbData({ id: cashSnap.id, ...cashSnap.data() });
+            setLoading(false);
+          }
+          return;
+        }
+
+        // 2. Try cashCollections by receiptNumber or erNo or legacyReceiptNumber
+        const cashQ = query(
+          collection(db, 'cashCollections'),
+          where('receiptNumber', '==', rawId),
+          limit(1)
+        );
+        const cashQSnap = await getDocs(cashQ);
+        if (!cashQSnap.empty) {
+          const d = cashQSnap.docs[0];
+          if (isMounted) {
+            setDbData({ id: d.id, ...d.data() });
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (!isNaN(Number(rawId))) {
+          const erQ = query(
+            collection(db, 'cashCollections'),
+            where('erNo', '==', Number(rawId)),
+            limit(1)
+          );
+          const erQSnap = await getDocs(erQ);
+          if (!erQSnap.empty) {
+            const d = erQSnap.docs[0];
+            if (isMounted) {
+              setDbData({ id: d.id, ...d.data() });
+              setLoading(false);
+            }
+            return;
+          }
+        }
+
+        // 3. Fallback: Try offers
+        const offerDocRef = doc(db, 'offers', rawId);
+        const offerSnap = await getDoc(offerDocRef);
+        if (offerSnap.exists()) {
+          if (isMounted) {
+            setDbData({ id: offerSnap.id, ...offerSnap.data() });
+            setLoading(false);
+          }
+          return;
+        }
+
+        const offerQ = query(
+          collection(db, 'offers'),
+          where('offerNumber', '==', rawId),
+          limit(1)
+        );
+        const offerQSnap = await getDocs(offerQ);
+        if (!offerQSnap.empty) {
+          const d = offerQSnap.docs[0];
+          if (isMounted) {
+            setDbData({ id: d.id, ...d.data() });
+            setLoading(false);
+          }
+          return;
+        }
+      } catch (err) {
+        console.warn('Receipt Firestore fetch error:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    fetchReceiptData();
+    return () => {
+      isMounted = false;
+    };
+  }, [rawId]);
+
+  // Resolve ER Number
+  // Priority: dbData.erNo -> dbData.receiptNumber (if numeric) -> queryParam('er') -> if rawId is numeric -> '1001'
+  let erNumber = '1001';
+  if (dbData?.erNo) {
+    erNumber = String(dbData.erNo);
+  } else if (dbData?.receiptNumber && /^\d+$/.test(String(dbData.receiptNumber))) {
+    erNumber = String(dbData.receiptNumber);
+  } else if (searchParams.get('er')) {
+    erNumber = searchParams.get('er')!;
+  } else if (/^\d{4,}$/.test(rawId)) {
+    erNumber = rawId;
+  } else if (rawId.startsWith('RCP-') && /^\d+$/.test(rawId.replace(/\D/g, ''))) {
+    const num = rawId.replace(/\D/g, '');
+    erNumber = num.length >= 4 ? num.slice(-4) : num;
+  }
+
+  const donorName = dbData?.contributorName || searchParams.get('donor') || 'Contributor';
+  const donorPhone = dbData?.contributorPhone || searchParams.get('phone') || '';
+  const donorPlace = dbData?.contributorPlace || searchParams.get('place') || '';
+  
+  const rawAmountPaise = dbData?.amountPaise || parseInt(searchParams.get('amount') || '0', 10);
+  const rawPaidPaise = dbData?.paidPaise || parseInt(searchParams.get('paid') || '0', 10);
+  const offerType = dbData?.offerType || searchParams.get('type') || 'cash';
+  const quantity = dbData?.quantity || parseInt(searchParams.get('qty') || '1', 10);
+  const statusParam = dbData?.status || searchParams.get('status') || 'verified';
+  const receivingEntity = dbData?.receivingEntity || searchParams.get('account') || 'unit';
 
   const isPartial = statusParam === 'partial';
-  const amountRupees = Math.floor(amountPaise / 100);
-  const paidRupees = isPartial ? Math.floor(paidPaise / 100) : amountRupees;
+  const amountRupees = Math.floor(rawAmountPaise / 100);
+  const paidRupees = isPartial ? Math.floor(rawPaidPaise / 100) : amountRupees;
   const displayRupees = (isPartial ? paidRupees : amountRupees) || 50000;
 
   const amountWords = numberToWordsINR(displayRupees);
 
   // Date formatting (DD-MM-YYYY)
-  const dateParam = searchParams.get('date');
   let receiptDate = '';
-  if (dateParam) {
-    receiptDate = dateParam;
-  } else {
+  if (dbData?.createdAt) {
+    try {
+      const d = dbData.createdAt.toDate ? dbData.createdAt.toDate() : new Date(dbData.createdAt);
+      if (!isNaN(d.getTime())) {
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        receiptDate = `${day}-${month}-${year}`;
+      }
+    } catch {}
+  }
+  if (!receiptDate && dbData?.date) {
+    receiptDate = dbData.date;
+  }
+  if (!receiptDate && searchParams.get('date')) {
+    receiptDate = searchParams.get('date')!;
+  }
+  if (!receiptDate) {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, '0');
     const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -46,7 +170,8 @@ export default function ReceiptPage() {
 
   const purposeParam = searchParams.get('purpose');
   const purposeText = purposeParam
-    || (offerType === 'cent' ? `Salafi Masjid Land Acquisition Fund (${quantity} Cent Sponsorship)`
+    || (dbData?.eventName ? `Salafi Masjid Land Acquisition Fund — ${dbData.eventName}`
+      : offerType === 'cent' ? `Salafi Masjid Land Acquisition Fund (${quantity} Cent Sponsorship)`
       : offerType === 'musalla' ? `Salafi Masjid Land Acquisition Fund (${quantity} Musalla Prayer Space)`
       : offerType === 'sqft' ? `Salafi Masjid Land Acquisition Fund (${quantity} Sq Ft Sponsorship)`
       : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
@@ -179,14 +304,14 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '25.6%',
-              left: '77.2%',
-              width: '15%',
-              fontSize: 'clamp(0.72rem, 1.6vw, 1.15rem)',
+              top: '35.6%',
+              left: '75.2%',
+              fontSize: 'clamp(0.85rem, 1.8vw, 1.3rem)',
               fontWeight: 800,
               color: '#0F172A',
               fontFamily: "'Times New Roman', Times, serif",
               whiteSpace: 'nowrap',
+              lineHeight: 1,
             }}
           >
             {receiptDate}
@@ -196,13 +321,14 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '30.8%',
+              top: '39.8%',
               left: '12.8%',
-              fontSize: 'clamp(0.85rem, 1.9vw, 1.45rem)',
+              fontSize: 'clamp(0.95rem, 2.0vw, 1.55rem)',
               fontWeight: 900,
               color: '#B91C1C',
               fontFamily: "'Courier New', Courier, monospace",
               letterSpacing: '1px',
+              lineHeight: 1,
             }}
           >
             {erNumber}
@@ -212,16 +338,17 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '34.8%',
-              left: '24.8%',
-              right: '9%',
-              fontSize: 'clamp(0.78rem, 1.8vw, 1.35rem)',
+              top: '47.5%',
+              left: '30.5%',
+              right: '8%',
+              fontSize: 'clamp(0.85rem, 1.9vw, 1.45rem)',
               fontWeight: 800,
               color: '#0F172A',
               fontFamily: "'Times New Roman', Times, serif",
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              lineHeight: 1.1,
             }}
           >
             {donorName}{donorPlace ? ` (${donorPlace})` : ''}
@@ -231,10 +358,10 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '41.8%',
-              left: '31.2%',
-              right: '9%',
-              fontSize: 'clamp(0.7rem, 1.5vw, 1.15rem)',
+              top: '56.5%',
+              left: '31.0%',
+              right: '8%',
+              fontSize: 'clamp(0.75rem, 1.6vw, 1.25rem)',
               fontWeight: 800,
               color: '#0F172A',
               fontFamily: "'Times New Roman', Times, serif",
@@ -242,6 +369,7 @@ export default function ReceiptPage() {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              lineHeight: 1.1,
             }}
           >
             {amountWords}
@@ -251,16 +379,17 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '48.8%',
-              left: '21.5%',
-              right: '9%',
-              fontSize: 'clamp(0.7rem, 1.5vw, 1.15rem)',
+              top: '65.5%',
+              left: '24.5%',
+              right: '8%',
+              fontSize: 'clamp(0.75rem, 1.6vw, 1.25rem)',
               fontWeight: 700,
               color: '#0369A1',
               fontFamily: "'Times New Roman', Times, serif",
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              lineHeight: 1.1,
             }}
           >
             {purposeText}
@@ -270,14 +399,14 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '59.6%',
-              left: '10.5%',
-              width: '22.0%',
-              height: '11.2%',
+              top: '77.5%',
+              left: '10.3%',
+              width: '22.25%',
+              height: '8.6%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 'clamp(1rem, 2.3vw, 1.85rem)',
+              fontSize: 'clamp(1.1rem, 2.5vw, 2.0rem)',
               fontWeight: 900,
               color: '#0F172A',
               fontFamily: "'Arial', sans-serif",
