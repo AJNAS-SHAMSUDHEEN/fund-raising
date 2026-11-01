@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { updateOfferInFirebase, deleteOfferFromFirebase } from '@/lib/firebase/db';
+import { useAdminAuth } from '@/lib/state/adminAuth';
 import { OfferType, PaymentMethod, OfferStatus, ReceivingEntity } from '@/lib/types';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import {

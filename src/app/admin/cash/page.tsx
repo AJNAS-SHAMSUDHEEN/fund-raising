@@ -28,6 +28,36 @@ import { useAdminAuth } from '@/lib/state/adminAuth';
 
 export default function CashCollectionPOSPage() {
   const { adminUser } = useAdminAuth();
+
+  if (adminUser?.role === 'volunteer') {
+    return (
+      <div style={{
+        padding: '60px 20px',
+        textAlign: 'center',
+        background: '#FFFFFF',
+        borderRadius: '16px',
+        margin: '40px auto',
+        maxWidth: '560px',
+        border: '1px solid #E2E8F0',
+        boxShadow: 'var(--shadow-sm)'
+      }}>
+        <AlertCircle size={48} color="#DC2626" style={{ margin: '0 auto 16px' }} />
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--brand-900)', marginBottom: '8px' }}>
+          Access Restricted (അനുമതിയില്ല)
+        </h2>
+        <p style={{ color: '#64748B', fontSize: '0.92rem', marginBottom: '22px', lineHeight: 1.5 }}>
+          Volunteers have read-only access to view the Financial Dashboard. Cash Collection POS is restricted to Super Admins.
+        </p>
+        <Link
+          href="/admin"
+          className="btn btn-primary"
+          style={{ display: 'inline-flex', padding: '10px 24px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700 }}
+        >
+          Go to Financial Dashboard
+        </Link>
+      </div>
+    );
+  }
   // Step 1: Phone Search State
   const [phoneInput, setPhoneInput] = useState('');
   const [hasNoPhone, setHasNoPhone] = useState(false);

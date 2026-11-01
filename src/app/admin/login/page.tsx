@@ -27,11 +27,7 @@ export default function AdminLoginPage() {
   // If already logged in, redirect
   React.useEffect(() => {
     if (adminUser) {
-      if (adminUser.role === 'volunteer') {
-        router.push('/admin/cash');
-      } else {
-        router.push('/admin');
-      }
+      router.push('/admin');
     }
   }, [adminUser, router]);
 
@@ -59,7 +55,7 @@ export default function AdminLoginPage() {
     setIsSubmitting(false);
 
     if (res.success) {
-      router.push('/admin/cash');
+      router.push('/admin');
     } else {
       setErrorMsg(res.error || 'Invalid Mobile Number or PIN.');
     }
@@ -386,7 +382,7 @@ export default function AdminLoginPage() {
                   <span>Verifying PIN...</span>
                 ) : (
                   <>
-                    <span>Enter Cash POS</span>
+                    <span>View Financial Dashboard</span>
                     <ArrowRight size={18} />
                   </>
                 )}

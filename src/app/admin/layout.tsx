@@ -49,8 +49,13 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoading && !adminUser && !isLoginPage) {
       router.push('/admin/login');
+    } else if (!isLoading && adminUser && adminUser.role === 'volunteer') {
+      const restrictedForVolunteer = ['/admin/cash', '/admin/verify', '/admin/events', '/admin/settings'];
+      if (restrictedForVolunteer.includes(pathname)) {
+        router.replace('/admin');
+      }
     }
-  }, [adminUser, isLoading, isLoginPage, router]);
+  }, [adminUser, isLoading, isLoginPage, pathname, router]);
 
   if (isLoginPage) {
     return <>{children}</>;
@@ -99,8 +104,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   ];
 
   const volunteerNavItems = [
-    { label: 'Cash Collection POS', href: '/admin/cash', icon: Coins },
-    { label: 'Recent Transactions', href: '/admin/offers', icon: Receipt },
+    { label: 'Financial Dashboard', href: '/admin', icon: LayoutDashboard },
+    { label: 'Transactions & Offers', href: '/admin/offers', icon: Receipt },
+    { label: 'Financial Reports', href: '/admin/reports', icon: FileText },
   ];
 
   const currentNavItems = isSuperAdmin ? superAdminNavItems : volunteerNavItems;
@@ -425,7 +431,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                   Volunteer Management (വോളന്റിയർമാർ)
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Add venue volunteers with mobile number and a 4-digit PIN for Cash POS.
+                  Add venue volunteers with mobile number and a 4-digit PIN to view the Financial Dashboard (Read-Only).
                 </p>
               </div>
               <button
