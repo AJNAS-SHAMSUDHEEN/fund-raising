@@ -482,7 +482,7 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
     recentCashPayments: [],
   };
 
-  if (!cleanPhone || cleanPhone.length < 10) return result;
+  if (!cleanPhone || cleanPhone.length < 7) return result;
 
   // 1. Try Firebase query first
   try {

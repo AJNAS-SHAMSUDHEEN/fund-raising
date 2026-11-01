@@ -5,6 +5,7 @@ import { collection, query, orderBy, onSnapshot, doc, setDoc } from 'firebase/fi
 import { db } from '@/lib/firebase/client';
 import { updateOfferInFirebase, deleteOfferFromFirebase } from '@/lib/firebase/db';
 import { useAdminAuth } from '@/lib/state/adminAuth';
+import { formatDisplayPhone, buildWhatsAppLink } from '@/lib/utils/phone';
 import { OfferType, PaymentMethod, OfferStatus, ReceivingEntity } from '@/lib/types';
 import { formatINRFromPaise } from '@/lib/calculations/currency';
 import {
@@ -86,7 +87,7 @@ https://kuppam-collection.vercel.app
 ${masjidName}
 അഡ്മിൻ ടീം`;
 
-  return `https://wa.me/91${cleanPhone}?text=${encodeURIComponent(message)}`;
+  return buildWhatsAppLink(item.phone, message);
 }
 
 const MOCK_TRANSACTIONS: MockTransaction[] = [];

@@ -46,7 +46,8 @@ export default function HistoryPage() {
 
   // Read stored offers and donations authoritatively from Firestore
   useEffect(() => {
-    const cleanSessionPhone = (session.phone || '').replace(/\D/g, '').slice(-10);
+    const rawPhone = (session.phone || '').trim();
+    const cleanSessionPhone = rawPhone.startsWith('+') ? rawPhone : rawPhone.replace(/\D/g, '').slice(-10);
 
     if (cleanSessionPhone) {
       // Live sync from Firestore

@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { useUserSession } from '@/lib/state/userSession';
 import { normalizePhoneNumber } from '@/lib/calculations/currency';
+import CountryCodeSelect from '@/components/common/CountryCodeSelect';
+import { buildStoredPhoneNumber, validatePhoneNumber } from '@/lib/utils/phone';
 import { Landmark, X, UserCheck } from 'lucide-react';
 
 export default function WelcomeModal() {
   const { isPromptOpen, setIsPromptOpen, saveSession, session } = useUserSession();
   const [name, setName] = useState(session.name || '');
   const [phone, setPhone] = useState(session.phone || '');
+  const [countryCode, setCountryCode] = useState('+91');
   const [error, setError] = useState('');
 
   if (!isPromptOpen) return null;
@@ -19,12 +22,13 @@ export default function WelcomeModal() {
       setError('Please enter your name');
       return;
     }
-    const cleanPhone = normalizePhoneNumber(phone);
-    if (!cleanPhone || cleanPhone.length !== 10) {
-      setError('Please enter a valid 10-digit mobile number');
+    const valResult = validatePhoneNumber(phone, countryCode);
+    if (!valResult.isValid) {
+      setError(valResult.error || 'Please enter a valid phone number');
       return;
     }
 
+    const cleanPhone = buildStoredPhoneNumber(phone, countryCode);
     setError('');
     saveSession(name, cleanPhone);
   };
@@ -137,34 +141,27 @@ export default function WelcomeModal() {
             <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 600, color: 'var(--brand-900)', marginBottom: '6px' }}>
               Mobile Number <span style={{ color: 'red' }}>*</span>
             </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <div style={{
-                padding: '12px 14px',
-                borderRadius: '12px',
-                background: 'var(--bg-subtle)',
-                border: '1.5px solid var(--border-medium)',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}>
-                <span>IN 91</span>
-              </div>
+            <div style={{ display: 'flex', gap: '0' }}>
+              <CountryCodeSelect
+                value={countryCode}
+                onChange={setCountryCode}
+                style={{ borderRadius: '12px 0 0 12px', height: '48px' }}
+              />
               <input
                 type="tel"
                 required
-                maxLength={10}
-                placeholder="Enter 10-digit mobile number"
+                maxLength={15}
+                placeholder={countryCode === '+91' ? 'Enter 10-digit mobile number' : 'Mobile number'}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 style={{
                   flex: 1,
                   padding: '12px 14px',
-                  borderRadius: '12px',
+                  borderRadius: '0 12px 12px 0',
                   border: '1.5px solid var(--border-medium)',
+                  borderLeft: 'none',
                   fontSize: '0.95rem',
+                  outline: 'none',
                 }}
               />
             </div>

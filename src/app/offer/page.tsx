@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { OfferType, CommitmentType } from '@/lib/types';
 import { INITIAL_CAMPAIGN } from '@/lib/state/mockStore';
 import { formatINR, formatINRFromPaise, normalizePhoneNumber } from '@/lib/calculations/currency';
+import CountryCodeSelect from '@/components/common/CountryCodeSelect';
+import { buildStoredPhoneNumber, validatePhoneNumber, buildWhatsAppLink } from '@/lib/utils/phone';
 import { useUserSession } from '@/lib/state/userSession';
 import {
   Coins,
@@ -75,6 +77,7 @@ function OfferWorkflowContent() {
   // 3. STEP 3: Contributor Details
   const [fullName, setFullName] = useState<string>(session.name || '');
   const [phone, setPhone] = useState<string>(session.phone || '');
+  const [countryCode, setCountryCode] = useState<string>('+91');
   const [place, setPlace] = useState<string>('');
 
   const phoneInputRef = useRef<HTMLInputElement>(null);
@@ -189,9 +192,9 @@ function OfferWorkflowContent() {
 
   const validateStep3 = () => {
     const errs: { [key: string]: string } = {};
-    const cleanPhone = normalizePhoneNumber(phone);
-    if (!cleanPhone || cleanPhone.length !== 10) {
-      errs.phone = 'സാധുവായ 10 അക്ക മൊബൈൽ നമ്പർ നൽകുക (Enter a valid 10-digit mobile number)';
+    const phoneVal = validatePhoneNumber(phone, countryCode);
+    if (!phoneVal.isValid) {
+      errs.phone = phoneVal.error || 'സാധുവായ മൊബൈൽ നമ്പർ നൽകുക';
     }
     if (!place.trim()) {
       errs.place = 'Please enter the location to continue.';
@@ -200,7 +203,7 @@ function OfferWorkflowContent() {
 
     if (Object.keys(errs).length > 0) {
       // Ensure the missing field is scrolled into view and unobstructed by the sticky header
-      if (!cleanPhone || cleanPhone.length !== 10) {
+      if (errs.phone) {
         if (phoneInputRef.current) {
           const headerOffset = 90;
           const elementPosition = phoneInputRef.current.getBoundingClientRect().top;
@@ -249,13 +252,14 @@ function OfferWorkflowContent() {
 
     setIsSubmitting(true);
     const resolvedName = fullName.trim() || 'Well Wisher';
-    const cleanPhone = normalizePhoneNumber(phone);
+    const cleanPhone = buildStoredPhoneNumber(phone, countryCode);
     const generatedOfferNumber = `OFF-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
     const offerRecord = {
       offerNumber: generatedOfferNumber,
       contributorName: resolvedName,
       contributorPhone: cleanPhone,
+      countryCode,
       contributorPlace: place.trim(),
       offerType,
       quantity: displayQuantity,
@@ -1380,22 +1384,20 @@ function OfferWorkflowContent() {
                 <label style={{ display: 'block', fontSize: '0.88rem', fontWeight: 700, color: 'var(--brand-900)', marginBottom: '6px' }}>
                   Mobile Number (മൊബൈൽ നമ്പർ - നിർബന്ധം) *
                 </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <span style={{
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    background: '#FFFFFF',
-                    border: '1px solid #CBD5E1',
-                    fontWeight: 800,
-                    color: 'var(--brand-800)',
-                  }}>
-                    +91
-                  </span>
+                <div style={{ display: 'flex', gap: '0' }}>
+                  <CountryCodeSelect
+                    value={countryCode}
+                    onChange={(val) => {
+                      setCountryCode(val);
+                      if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                    }}
+                    style={{ borderRadius: '10px 0 0 10px', height: '46px' }}
+                  />
                   <input
                     ref={phoneInputRef}
                     type="tel"
-                    maxLength={10}
-                    placeholder="10-digit mobile number"
+                    maxLength={15}
+                    placeholder={countryCode === '+91' ? '10-digit mobile number' : 'Mobile number'}
                     value={phone}
                     onChange={(e) => {
                       setPhone(e.target.value);
@@ -1404,11 +1406,13 @@ function OfferWorkflowContent() {
                     style={{
                       flex: 1,
                       padding: '12px 14px',
-                      borderRadius: '10px',
+                      borderRadius: '0 10px 10px 0',
                       border: errors.phone ? '2px solid var(--status-danger)' : '1px solid #CBD5E1',
+                      borderLeft: 'none',
                       background: '#FFFFFF',
                       fontSize: '1rem',
                       fontWeight: 700,
+                      outline: 'none',
                     }}
                   />
                 </div>

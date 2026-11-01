@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function: Validate minimum 10-digit phone number
+    // Helper function: Validate minimum 8-digit international / national phone number
     function isValidPhone(phone) {
-      return phone is string && phone.size() >= 10;
+      return phone is string && phone.size() >= 8;
     }
 
     // 1. Campaign Aggregates (Grand Total & Live Counter)

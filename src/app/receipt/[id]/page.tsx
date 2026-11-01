@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { numberToWordsINR } from '@/lib/calculations/currency';
+import { buildWhatsAppLink } from '@/lib/utils/phone';
 import { Printer, ArrowLeft, Share2, CheckCircle2 } from 'lucide-react';
 
 export default function ReceiptPage() {
@@ -235,7 +236,7 @@ export default function ReceiptPage() {
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <a
-              href={`https://wa.me/${donorPhone ? '91' + donorPhone : ''}?text=${encodeURIComponent(whatsappMessage)}`}
+              href={buildWhatsAppLink(donorPhone, whatsappMessage)}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-outline"

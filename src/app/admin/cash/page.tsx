@@ -24,6 +24,8 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { recordCashToFirebase, getDonorHistoryByPhone, getNextReceiptNumber, DonorHistory, DonorOfferRecord } from '@/lib/firebase/db';
+import CountryCodeSelect from '@/components/common/CountryCodeSelect';
+import { COUNTRY_CODES, buildStoredPhoneNumber, validatePhoneNumber } from '@/lib/utils/phone';
 import { useAdminAuth } from '@/lib/state/adminAuth';
 
 export default function CashCollectionPOSPage() {
@@ -60,6 +62,7 @@ export default function CashCollectionPOSPage() {
   }
   // Step 1: Phone Search State
   const [phoneInput, setPhoneInput] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
   const [hasNoPhone, setHasNoPhone] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
