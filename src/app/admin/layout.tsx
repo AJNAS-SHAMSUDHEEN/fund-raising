@@ -148,21 +148,23 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
           </span>
         </div>
 
-        <Link
-          href="/live"
-          target="_blank"
-          style={{
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            color: '#15803D',
-            background: '#DCFCE7',
-            padding: '5px 10px',
-            borderRadius: '6px',
-            textDecoration: 'none',
-          }}
-        >
-          📺 Live
-        </Link>
+        {isSuperAdmin && (
+          <Link
+            href="/live"
+            target="_blank"
+            style={{
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: '#15803D',
+              background: '#DCFCE7',
+              padding: '5px 10px',
+              borderRadius: '6px',
+              textDecoration: 'none',
+            }}
+          >
+            📺 Live
+          </Link>
+        )}
       </div>
 
       {/* Drawer Overlay Backdrop for Mobile */}
@@ -326,31 +328,33 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {/* Open Live Screen Button */}
-          <div style={{ marginTop: '14px', marginBottom: '8px' }}>
-            <Link
-              href="/live"
-              target="_blank"
-              onClick={() => setIsMobileDrawerOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '12px 14px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #16A34A 0%, #15803D 100%)',
-                color: '#FFFFFF',
-                textDecoration: 'none',
-                boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <span>📺 Open Live Screen ↗</span>
-            </Link>
-          </div>
+          {/* Open Live Screen Button (Super Admin Only) */}
+          {isSuperAdmin && (
+            <div style={{ marginTop: '14px', marginBottom: '8px' }}>
+              <Link
+                href="/live"
+                target="_blank"
+                onClick={() => setIsMobileDrawerOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.88rem',
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #16A34A 0%, #15803D 100%)',
+                  color: '#FFFFFF',
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>📺 Open Live Screen ↗</span>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Footer actions: Logout */}
