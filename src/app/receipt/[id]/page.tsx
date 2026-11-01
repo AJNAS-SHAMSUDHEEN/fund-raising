@@ -303,11 +303,11 @@ export default function ReceiptPage() {
             backgroundColor: '#FFFFFF',
           }}
         >
-          {/* 1. Date (moved just upside, clear of "Date" label, decreased size shortly, Roboto font) */}
+          {/* 1. Date (adjusted slightly down closer to dotted line) */}
           <div
             style={{
               position: 'absolute',
-              top: '32.6%',
+              top: '34.2%',
               left: '77.5%',
               fontSize: 'clamp(0.68rem, 1.35vw, 0.98rem)',
               fontWeight: 700,
@@ -325,7 +325,7 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '38.5%',
+              top: '40.0%',
               left: '12.8%',
               fontSize: 'clamp(0.95rem, 2.0vw, 1.55rem)',
               fontWeight: 900,
@@ -338,11 +338,11 @@ export default function ReceiptPage() {
             {erNumber}
           </div>
 
-          {/* 3. Received with thanks from (moved just upside, resting cleanly above dotted line) */}
+          {/* 3. Received with thanks from (adjusted slightly down above dotted line) */}
           <div
             style={{
               position: 'absolute',
-              top: '43.8%',
+              top: '46.0%',
               left: '30.5%',
               right: '8%',
               fontSize: 'clamp(0.85rem, 1.85vw, 1.45rem)',
@@ -359,11 +359,11 @@ export default function ReceiptPage() {
             {donorName}{donorPlace ? ` (${donorPlace})` : ''}
           </div>
 
-          {/* 4. Amount of Rupees ( in words ) (moved upside, Roboto font, italic) */}
+          {/* 4. Amount of Rupees ( in words ) (adjusted slightly down above dotted line) */}
           <div
             style={{
               position: 'absolute',
-              top: '53.5%',
+              top: '55.2%',
               left: '31.0%',
               right: '8%',
               fontSize: 'clamp(0.72rem, 1.4vw, 1.05rem)',
@@ -380,11 +380,11 @@ export default function ReceiptPage() {
             {amountWords}
           </div>
 
-          {/* 5. For the purpose of (decreased size shortly, moved just upside, Roboto font) */}
+          {/* 5. For the purpose of (adjusted slightly down above dotted line) */}
           <div
             style={{
               position: 'absolute',
-              top: '63.8%',
+              top: '65.8%',
               left: '24.5%',
               right: '8%',
               fontSize: 'clamp(0.62rem, 1.15vw, 0.92rem)',
