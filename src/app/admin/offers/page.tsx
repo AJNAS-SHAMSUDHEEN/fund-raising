@@ -94,6 +94,7 @@ const MOCK_TRANSACTIONS: MockTransaction[] = [];
 
 export default function OffersLedgerPage() {
   const { adminUser } = useAdminAuth();
+  const isSuperAdmin = adminUser?.role === 'super_admin';
   const [eventsList, setEventsList] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -662,13 +663,15 @@ export default function OffersLedgerPage() {
                 <th style={{ padding: '14px 20px', textAlign: 'center' }}>Status</th>
                 <th style={{ padding: '14px 20px' }}>Date</th>
                 <th style={{ padding: '14px 20px', textAlign: 'center' }}>Receipt</th>
-                <th style={{ padding: '14px 20px', textAlign: 'center' }}>Admin Actions</th>
+                {isSuperAdmin && (
+                  <th style={{ padding: '14px 20px', textAlign: 'center' }}>Admin Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={isSuperAdmin ? 9 : 8} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     No offers found matching your criteria.
                   </td>
                 </tr>
@@ -915,46 +918,48 @@ export default function OffersLedgerPage() {
                         </a>
                       )}
                     </td>
-                    <td style={{ padding: '16px 20px', textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                        {/* Edit Button */}
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(item)}
-                          className="btn btn-outline"
-                          style={{
-                            padding: '6px 10px',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            gap: '4px',
-                            borderColor: 'var(--brand-300)',
-                            color: 'var(--brand-900)',
-                          }}
-                          title="Edit this offer (തിരുത്തുക)"
-                        >
-                          <Edit3 size={13} color="var(--brand-800)" />
-                          <span>Edit</span>
-                        </button>
+                    {isSuperAdmin && (
+                      <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          {/* Edit Button */}
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(item)}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: '0.78rem',
+                              fontWeight: 700,
+                              gap: '4px',
+                              borderColor: 'var(--brand-300)',
+                              color: 'var(--brand-900)',
+                            }}
+                            title="Edit this offer (തിരുത്തുക)"
+                          >
+                            <Edit3 size={13} color="var(--brand-800)" />
+                            <span>Edit</span>
+                          </button>
 
-                        {/* Delete Button */}
-                        <button
-                          type="button"
-                          onClick={() => setDeletingOffer(item)}
-                          className="btn btn-outline"
-                          style={{
-                            padding: '6px 9px',
-                            fontSize: '0.78rem',
-                            gap: '4px',
-                            color: '#DC2626',
-                            borderColor: '#FECACA',
-                            background: '#FEF2F2',
-                          }}
-                          title="Delete / Remove this mistaken offer (നീക്കം ചെയ്യുക)"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
+                          {/* Delete Button */}
+                          <button
+                            type="button"
+                            onClick={() => setDeletingOffer(item)}
+                            className="btn btn-outline"
+                            style={{
+                              padding: '6px 9px',
+                              fontSize: '0.78rem',
+                              gap: '4px',
+                              color: '#DC2626',
+                              borderColor: '#FECACA',
+                              background: '#FEF2F2',
+                            }}
+                            title="Delete / Remove this mistaken offer (നീക്കം ചെയ്യുക)"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

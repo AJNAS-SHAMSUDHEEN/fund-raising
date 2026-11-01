@@ -51,8 +51,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
       router.push('/admin/login');
     } else if (!isLoading && adminUser && adminUser.role === 'volunteer') {
       const restrictedForVolunteer = ['/admin/cash', '/admin/verify', '/admin/events', '/admin/settings'];
-      if (restrictedForVolunteer.includes(pathname)) {
-        router.replace('/admin');
+      if (restrictedForVolunteer.includes(pathname) || pathname === '/admin') {
+        router.replace('/admin/reports');
       }
     }
   }, [adminUser, isLoading, isLoginPage, pathname, router]);
@@ -104,9 +104,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
   ];
 
   const volunteerNavItems = [
-    { label: 'Financial Dashboard', href: '/admin', icon: LayoutDashboard },
-    { label: 'Transactions & Offers', href: '/admin/offers', icon: Receipt },
     { label: 'Financial Reports', href: '/admin/reports', icon: FileText },
+    { label: 'Transactions & Offers', href: '/admin/offers', icon: Receipt },
   ];
 
   const currentNavItems = isSuperAdmin ? superAdminNavItems : volunteerNavItems;

@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
     setIsSubmitting(false);
 
     if (res.success) {
-      router.push('/admin');
+      router.push('/admin/reports');
     } else {
       setErrorMsg(res.error || 'Authentication failed. Please verify credentials.');
     }
