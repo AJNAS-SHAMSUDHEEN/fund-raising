@@ -108,7 +108,6 @@ export default function ReceiptPage() {
   }, [rawId]);
 
   // Resolve ER Number
-  // Priority: dbData.erNo -> dbData.receiptNumber (if numeric) -> queryParam('er') -> if rawId is numeric -> '1001'
   let erNumber = '1001';
   if (dbData?.erNo) {
     erNumber = String(dbData.erNo);
@@ -126,7 +125,7 @@ export default function ReceiptPage() {
   const donorName = dbData?.contributorName || searchParams.get('donor') || 'Contributor';
   const donorPhone = dbData?.contributorPhone || searchParams.get('phone') || '';
   const donorPlace = dbData?.contributorPlace || searchParams.get('place') || '';
-  
+
   const rawAmountPaise = dbData?.amountPaise || parseInt(searchParams.get('amount') || '0', 10);
   const rawPaidPaise = dbData?.paidPaise || parseInt(searchParams.get('paid') || '0', 10);
   const offerType = dbData?.offerType || searchParams.get('type') || 'cash';
@@ -195,6 +194,10 @@ export default function ReceiptPage() {
 
   return (
     <div style={{ padding: '24px 0 60px', background: '#F1F5F9', minHeight: '90vh' }}>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
+      />
       <div className="container" style={{ maxWidth: '980px', margin: '0 auto', padding: '0 16px' }}>
 
         {/* Action Header Bar */}
@@ -300,18 +303,19 @@ export default function ReceiptPage() {
             backgroundColor: '#FFFFFF',
           }}
         >
-          {/* 1. Date (sitting on the dotted line at top right) */}
+          {/* 1. Date (moved just upside, clear of "Date" label, decreased size shortly, Roboto font) */}
           <div
             style={{
               position: 'absolute',
-              top: '35.6%',
-              left: '75.2%',
-              fontSize: 'clamp(0.85rem, 1.8vw, 1.3rem)',
-              fontWeight: 800,
+              top: '32.6%',
+              left: '77.5%',
+              fontSize: 'clamp(0.68rem, 1.35vw, 0.98rem)',
+              fontWeight: 700,
               color: '#0F172A',
-              fontFamily: "'Times New Roman', Times, serif",
+              fontFamily: "'Roboto', sans-serif",
               whiteSpace: 'nowrap',
               lineHeight: 1,
+              letterSpacing: '0.3px',
             }}
           >
             {receiptDate}
@@ -321,12 +325,12 @@ export default function ReceiptPage() {
           <div
             style={{
               position: 'absolute',
-              top: '39.8%',
+              top: '38.5%',
               left: '12.8%',
               fontSize: 'clamp(0.95rem, 2.0vw, 1.55rem)',
               fontWeight: 900,
               color: '#B91C1C',
-              fontFamily: "'Courier New', Courier, monospace",
+              fontFamily: "'Roboto', monospace",
               letterSpacing: '1px',
               lineHeight: 1,
             }}
@@ -334,37 +338,38 @@ export default function ReceiptPage() {
             {erNumber}
           </div>
 
-          {/* 3. Received with thanks from */}
+          {/* 3. Received with thanks from (moved just upside, resting cleanly above dotted line) */}
           <div
             style={{
               position: 'absolute',
-              top: '47.5%',
+              top: '43.8%',
               left: '30.5%',
               right: '8%',
-              fontSize: 'clamp(0.85rem, 1.9vw, 1.45rem)',
-              fontWeight: 800,
+              fontSize: 'clamp(0.85rem, 1.85vw, 1.45rem)',
+              fontWeight: 700,
               color: '#0F172A',
-              fontFamily: "'Times New Roman', Times, serif",
+              fontFamily: "'Roboto', sans-serif",
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               lineHeight: 1.1,
+              letterSpacing: '0.3px',
             }}
           >
             {donorName}{donorPlace ? ` (${donorPlace})` : ''}
           </div>
 
-          {/* 4. Amount of Rupees ( in words ) */}
+          {/* 4. Amount of Rupees ( in words ) (moved upside, Roboto font, italic) */}
           <div
             style={{
               position: 'absolute',
-              top: '56.5%',
+              top: '53.5%',
               left: '31.0%',
               right: '8%',
-              fontSize: 'clamp(0.75rem, 1.6vw, 1.25rem)',
-              fontWeight: 800,
+              fontSize: 'clamp(0.72rem, 1.4vw, 1.05rem)',
+              fontWeight: 600,
               color: '#0F172A',
-              fontFamily: "'Times New Roman', Times, serif",
+              fontFamily: "'Roboto', sans-serif",
               fontStyle: 'italic',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -375,17 +380,17 @@ export default function ReceiptPage() {
             {amountWords}
           </div>
 
-          {/* 5. For the purpose of */}
+          {/* 5. For the purpose of (decreased size shortly, moved just upside, Roboto font) */}
           <div
             style={{
               position: 'absolute',
-              top: '65.5%',
+              top: '63.8%',
               left: '24.5%',
               right: '8%',
-              fontSize: 'clamp(0.75rem, 1.6vw, 1.25rem)',
-              fontWeight: 700,
+              fontSize: 'clamp(0.62rem, 1.15vw, 0.92rem)',
+              fontWeight: 600,
               color: '#0369A1',
-              fontFamily: "'Times New Roman', Times, serif",
+              fontFamily: "'Roboto', sans-serif",
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -407,9 +412,9 @@ export default function ReceiptPage() {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 'clamp(1.1rem, 2.5vw, 2.0rem)',
-              fontWeight: 900,
+              fontWeight: 800,
               color: '#0F172A',
-              fontFamily: "'Arial', sans-serif",
+              fontFamily: "'Roboto', sans-serif",
               letterSpacing: '0.5px',
             }}
           >
@@ -483,6 +488,8 @@ export default function ReceiptPage() {
 
       {/* High-Resolution Print Styles */}
       <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap');
+
         @media print {
           @page {
             size: landscape;
