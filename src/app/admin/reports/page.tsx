@@ -330,7 +330,9 @@ export default function AdminReportsPage() {
         if (item.linkedOfferRef || item.linkedOfferId) {
           totalCollectedForOffersPaise += item.amountPaise;
         } else {
-          // Direct counter walk-in donation without prior offer
+          // Direct counter walk-in donation without prior offer: also counts towards total offered
+          totalOfferedPaise += item.amountPaise;
+          offerCount++;
           const catKey = item.category || 'cash';
           if (!categoryMap[catKey]) {
             categoryMap[catKey] = { count: 0, amountPaise: 0 };

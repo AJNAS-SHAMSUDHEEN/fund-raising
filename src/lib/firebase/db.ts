@@ -407,6 +407,9 @@ export async function recordCashToFirebase(cashData: {
       }
     }
 
+    // Check if this cash collection is direct without an existing offer
+    const isDirectCash = !cashData.offerId || cashData.offerId.startsWith('mock-');
+
     // 1. Update grand total aggregate verified totals
     const aggRef = doc(db, 'campaignAggregates', 'main');
     await setDoc(
@@ -414,6 +417,12 @@ export async function recordCashToFirebase(cashData: {
       {
         totalVerifiedPaise: increment(cashData.amountPaise),
         verifiedCount: increment(1),
+        ...(isDirectCash
+          ? {
+              totalOfferedPaise: increment(cashData.amountPaise),
+              offerCount: increment(1),
+            }
+          : {}),
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -428,6 +437,12 @@ export async function recordCashToFirebase(cashData: {
           name: cashData.eventName || cashData.eventId,
           totalVerifiedPaise: increment(cashData.amountPaise),
           verifiedCount: increment(1),
+          ...(isDirectCash
+            ? {
+                totalOfferedPaise: increment(cashData.amountPaise),
+                offerCount: increment(1),
+              }
+            : {}),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
