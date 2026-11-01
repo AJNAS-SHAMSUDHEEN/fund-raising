@@ -32,7 +32,10 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.resource.data.amountPaise is number
                     && request.resource.data.amountPaise > 0
-                    && isValidPhone(request.resource.data.contributorPhone);
+                    && (
+                      isValidPhone(request.resource.data.contributorPhone)
+                      || request.resource.data.hasNoPhone == true
+                    );
       allow update, delete: if true;
     }
 

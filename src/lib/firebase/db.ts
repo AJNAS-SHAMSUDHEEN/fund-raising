@@ -357,20 +357,33 @@ export async function recordCashToFirebase(cashData: {
   notes?: string;
 }) {
   try {
-    const docRef = await addDoc(collection(db, 'cashCollections'), {
-      ...cashData,
-      erNo: Number(cashData.receiptNumber) || undefined,
+    const isNoPhone = Boolean(cashData.hasNoPhone);
+    const cleanPhone = isNoPhone
+      ? (cashData.contributorPhone && cashData.contributorPhone.length >= 10 ? cashData.contributorPhone : '0000000000')
+      : (cashData.contributorPhone || '');
+
+    const cleanDocData: any = {
+      receiptNumber: cashData.receiptNumber || '1001',
+      erNo: Number(cashData.receiptNumber) || 1001,
       contributorName: cashData.contributorName?.trim() || 'Well Wisher',
-      contributorPhone: cashData.contributorPhone || '',
+      contributorPhone: cleanPhone,
       contributorPlace: cashData.contributorPlace?.trim() || '',
-      hasNoPhone: Boolean(cashData.hasNoPhone),
+      hasNoPhone: isNoPhone,
       receivingEntity: cashData.receivingEntity || 'unit',
       receivingEntityName: cashData.receivingEntityName?.trim() || '',
+      offerType: cashData.offerType || 'cash',
+      quantity: Number(cashData.quantity) || 1,
+      amountPaise: Number(cashData.amountPaise) || 0,
+      collectorName: cashData.collectorName || 'Admin',
       eventId: cashData.eventId || 'general',
       eventName: cashData.eventName || 'General Campaign',
+      offerId: cashData.offerId || '',
+      notes: cashData.notes?.trim() || '',
       status: 'verified',
       createdAt: serverTimestamp(),
-    });
+    };
+
+    const docRef = await addDoc(collection(db, 'cashCollections'), cleanDocData);
 
     // If linked to an offer, update paidPaise and status on that offer document
     if (cashData.offerId && !cashData.offerId.startsWith('mock-')) {

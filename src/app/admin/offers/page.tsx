@@ -40,6 +40,8 @@ interface MockTransaction {
   eventId?: string;
   receivingEntity?: ReceivingEntity;
   receivingEntityName?: string;
+  rawTimestamp?: number;
+  isDirectCash?: boolean;
   date: string;
 }
 
@@ -135,54 +137,61 @@ export default function OffersLedgerPage() {
   const [receivingFilter, setReceivingFilter] = useState<'all' | 'unit' | 'district' | 'external'>('all');
 
   useEffect(() => {
+    let offersList: MockTransaction[] = [];
+    let cashList: MockTransaction[] = [];
+
+    const mergeAndSet = () => {
+      const combined = [...offersList, ...cashList].sort((a, b) => {
+        const timeA = a.rawTimestamp || 0;
+        const timeB = b.rawTimestamp || 0;
+        return timeB - timeA;
+      });
+      setTransactions(combined);
+    };
+
+    let unsubOffers: () => void = () => {};
+    let unsubCash: () => void = () => {};
+
     try {
-      const q = query(collection(db, 'offers'), orderBy('createdAt', 'desc'));
-      const unsub = onSnapshot(
-        q,
+      const qOffers = query(collection(db, 'offers'), orderBy('createdAt', 'desc'));
+      unsubOffers = onSnapshot(
+        qOffers,
         (snapshot) => {
-          if (snapshot.empty) {
-            setTransactions([]);
-            return;
-          }
-          const list: MockTransaction[] = [];
-          snapshot.forEach((docSnap) => {
+          offersList = snapshot.docs.map((docSnap) => {
             const d = docSnap.data();
             const total = Number(d.totalOfferedPaise) || 0;
             const paid = Number(d.paidPaise) || 0;
 
-            // Authoritatively derive status from paid amount vs total offered
             let computedStatus: OfferStatus = d.status || 'pledged';
             if (computedStatus !== 'cancelled') {
-              if (paid >= total && total > 0) {
-                computedStatus = 'verified';
-              } else if (paid > 0 && paid < total) {
-                computedStatus = 'partial';
-              } else {
-                computedStatus = 'pledged';
-              }
+              if (paid >= total && total > 0) computedStatus = 'verified';
+              else if (paid > 0 && paid < total) computedStatus = 'partial';
+              else computedStatus = 'pledged';
             }
 
-            // If status in database is outdated/desynchronized, self-heal in Firestore
             if (d.status !== computedStatus && computedStatus !== 'cancelled') {
               setDoc(doc(db, 'offers', docSnap.id), { status: computedStatus }, { merge: true }).catch(() => {});
             }
 
-            list.push({
+            const rawTimestamp = d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now();
+            return {
               id: docSnap.id,
               orderNumber: d.offerNumber || docSnap.id.slice(0, 8),
               contributorName: d.contributorName || 'Well Wisher',
-              phone: d.contributorPhone || '',
+              phone: d.contributorPhone === '0000000000' ? '' : (d.contributorPhone || ''),
               place: d.contributorPlace || '',
               offerType: d.offerType || 'cash',
               quantity: d.quantity || 1,
               amountPaise: total,
               paidPaise: paid,
-              channel: 'ONLINE',
+              channel: 'ONLINE' as PaymentMethod,
               status: computedStatus,
               eventName: d.eventName || 'General Campaign',
               eventId: d.eventId || 'general',
               receivingEntity: d.receivingEntity || 'unit',
               receivingEntityName: d.receivingEntityName || '',
+              rawTimestamp,
+              isDirectCash: false,
               date: d.createdAt?.toDate
                 ? d.createdAt.toDate().toLocaleDateString('en-IN', {
                   day: '2-digit',
@@ -190,18 +199,65 @@ export default function OffersLedgerPage() {
                   year: 'numeric',
                 })
                 : 'Recent',
-            });
+            };
           });
-          setTransactions(list);
+          mergeAndSet();
         },
-        (err) => {
-          console.warn('Firestore offers subscription fallback:', err.message);
-        }
+        (err) => console.warn('Firestore offers subscription fallback:', err.message)
       );
-      return () => unsub();
+
+      const qCash = query(collection(db, 'cashCollections'), orderBy('createdAt', 'desc'));
+      unsubCash = onSnapshot(
+        qCash,
+        (snapshot) => {
+          cashList = [];
+          snapshot.docs.forEach((docSnap) => {
+            const d = docSnap.data();
+            // Show direct cash collections without a linked offer (prevent duplicate rows for paid offers)
+            if (!d.offerId || d.offerId.startsWith('mock-')) {
+              const amount = Number(d.amountPaise) || 0;
+              const rawTimestamp = d.createdAt?.toMillis ? d.createdAt.toMillis() : Date.now();
+              const recNum = d.receiptNumber || d.erNo || docSnap.id.slice(0, 8);
+              cashList.push({
+                id: docSnap.id,
+                orderNumber: `ER-${recNum}`,
+                contributorName: d.contributorName || 'Well Wisher',
+                phone: d.contributorPhone === '0000000000' ? '' : (d.contributorPhone || ''),
+                place: d.contributorPlace || '',
+                offerType: d.offerType || 'cash',
+                quantity: d.quantity || 1,
+                amountPaise: amount,
+                paidPaise: amount,
+                channel: 'CASH' as PaymentMethod,
+                status: 'verified' as OfferStatus,
+                eventName: d.eventName || 'General Campaign',
+                eventId: d.eventId || 'general',
+                receivingEntity: d.receivingEntity || 'unit',
+                receivingEntityName: d.receivingEntityName || '',
+                rawTimestamp,
+                isDirectCash: true,
+                date: d.createdAt?.toDate
+                  ? d.createdAt.toDate().toLocaleDateString('en-IN', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                  : (d.date || 'Recent'),
+              });
+            }
+          });
+          mergeAndSet();
+        },
+        (err) => console.warn('Firestore cash collections subscription fallback:', err.message)
+      );
     } catch (e) {
-      console.warn('Firestore offers query fallback:', e);
+      console.warn('Firestore query fallback:', e);
     }
+
+    return () => {
+      unsubOffers();
+      unsubCash();
+    };
   }, []);
 
   const openEditModal = (offer: MockTransaction) => {
@@ -592,13 +648,22 @@ export default function OffersLedgerPage() {
                 filtered.map((item) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '16px 20px', fontWeight: 700, color: 'var(--brand-900)' }}>
-                      {item.orderNumber}
+                      <div>{item.orderNumber}</div>
+                      {item.channel === 'CASH' && (
+                        <span className="badge" style={{ fontSize: '0.68rem', background: '#DCFCE7', color: '#15803D', border: '1px solid #86EFAC', marginTop: '2px', display: 'inline-block' }}>
+                          CASH POS
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '16px 20px' }}>
                       <strong style={{ color: 'var(--brand-900)', display: 'block' }}>{item.contributorName}</strong>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
                         <small style={{ color: 'var(--text-muted)' }}>
-                          {item.phone ? `+91 ${item.phone}` : 'No phone'}
+                          {item.phone && item.phone !== '0000000000' ? (
+                            `+91 ${item.phone}`
+                          ) : (
+                            <span style={{ color: '#D97706', fontWeight: 600 }}>നമ്പർ ലഭ്യമല്ല (No Phone)</span>
+                          )}
                           {item.place ? ` • 📍 ${item.place}` : ''}
                         </small>
 

@@ -241,7 +241,7 @@ export default function CashCollectionPOSPage() {
       eventId: selectedEventId,
       eventName,
       collectorName: adminUser ? `${adminUser.name} (${adminUser.role === 'super_admin' ? 'Super Admin' : 'Volunteer'})` : 'Authorized Collector',
-      offerId: selectedOffer?.id,
+      offerId: selectedOffer?.id || '',
       notes: notes.trim(),
       timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -262,7 +262,7 @@ export default function CashCollectionPOSPage() {
         collectorName: adminUser ? `${adminUser.name} (${adminUser.role === 'super_admin' ? 'Super Admin' : 'Volunteer'})` : 'Authorized Collector',
         eventId: selectedEventId,
         eventName,
-        offerId: selectedOffer?.id,
+        offerId: selectedOffer?.id || '',
         notes: notes.trim(),
       });
     } catch (err) {
