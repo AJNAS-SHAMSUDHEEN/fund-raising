@@ -265,17 +265,16 @@ export default function ReceiptPage() {
 
   const formattedAmountINR = new Intl.NumberFormat('en-IN').format(displayRupees);
 
-  const whatsappMessage = `*WISDOM ISLAMIC ORGANISATION — KUPPAM UNIT*\n`
-    + `*OFFICIAL E-RECEIPT*\n\n`
-    + `പ്രിയപ്പെട്ട *${donorName}*,\n`
-    + `സലഫി മസ്ജിദ് ഭൂമി ഏറ്റെടുക്കൽ ഫണ്ടിലേക്ക് താങ്കൾ നൽകിയ സംഭാവന സ്വീകരിച്ചിരിക്കുന്നു. ജസാക്കല്ലാഹു ഖൈറൻ.\n\n`
+  const whatsappMessage = `*WISDOM ISLAMIC ORGANISATION — KUPPAM UNIT*\n\n`
+    + `ബഹുമാനപ്പെട്ട *${donorName}*,\n`
+    + `സലഫി മസ്ജിദ് ഭൂമി ഏറ്റെടുക്കൽ ഫണ്ടിലേക്ക് താങ്കൾ നൽകിയ സംഭാവന സ്വീകരിച്ചിരിക്കുന്നു. جزاك الله خيرا كثيرا 🤲\n\n`
     + `📄 *രസീത് നമ്പർ (ER.No):* ${erNumber}\n`
     + `📅 *തീയതി (Date):* ${receiptDate}\n`
     + `👤 *പേര് (Name):* ${donorName}${donorPlace ? ` (${donorPlace})` : ''}\n`
     + `💰 *തുക (Amount):* ₹${formattedAmountINR}/-\n`
     + `📝 *അക്ഷരത്തിൽ:* ${amountWords}\n`
     + `🎯 *ഉദ്ദേശ്യം:* ${purposeText}\n\n`
-    + `🔗 *ഔദ്യോഗിക രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n`
+    + `🔗 *രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n`
     + `${directReceiptUrl}\n\n`
     + `Salafi Masjid Land Acquisition Project\n`
     + `Salafi Center, Kuppam`;
