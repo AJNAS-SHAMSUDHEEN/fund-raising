@@ -6,16 +6,42 @@ import Link from 'next/link';
 import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { numberToWordsINR } from '@/lib/calculations/currency';
-import { buildWhatsAppLink } from '@/lib/utils/phone';
-import { Printer, ArrowLeft, Share2, CheckCircle2, Download, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { buildWhatsAppLink, buildStoredPhoneNumber } from '@/lib/utils/phone';
+import CountryCodeSelect from '@/components/common/CountryCodeSelect';
+import {
+  Printer,
+  ArrowLeft,
+  Share2,
+  CheckCircle2,
+  Download,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
+  Copy,
+  Check,
+  Send,
+  X,
+  Phone,
+  AlertCircle
+} from 'lucide-react';
 
 export default function ReceiptPage() {
   const params = useParams();
   const searchParams = useSearchParams();
 
   const rawId = (params?.id as string) || '';
+  const cleanDigits = rawId.replace(/\D/g, '');
   const [dbData, setDbData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sharing & copy state
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
+  const [isSharingWhatsApp, setIsSharingWhatsApp] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showNoPhoneModal, setShowNoPhoneModal] = useState(false);
+  const [customPhone, setCustomPhone] = useState('');
+  const [customCountryCode, setCustomCountryCode] = useState('+91');
 
   useEffect(() => {
     let isMounted = true;
@@ -25,8 +51,10 @@ export default function ReceiptPage() {
         return;
       }
 
+      const numValue = cleanDigits ? Number(cleanDigits) : null;
+
       try {
-        // 1. Try cashCollections by doc ID
+        // 1. Try cashCollections by doc ID (exact match)
         const cashDocRef = doc(db, 'cashCollections', rawId);
         const cashSnap = await getDoc(cashDocRef);
         if (cashSnap.exists()) {
@@ -37,26 +65,35 @@ export default function ReceiptPage() {
           return;
         }
 
-        // 2. Try cashCollections by receiptNumber or erNo or legacyReceiptNumber
-        const cashQ = query(
-          collection(db, 'cashCollections'),
-          where('receiptNumber', '==', rawId),
-          limit(1)
-        );
-        const cashQSnap = await getDocs(cashQ);
-        if (!cashQSnap.empty) {
-          const d = cashQSnap.docs[0];
-          if (isMounted) {
-            setDbData({ id: d.id, ...d.data() });
-            setLoading(false);
-          }
-          return;
+        // 2. Try cashCollections by receiptNumber variants (e.g. '10011', 'ER-10011', rawId)
+        const candidates = [rawId];
+        if (cleanDigits && cleanDigits !== rawId) {
+          candidates.push(cleanDigits);
+          candidates.push(`ER-${cleanDigits}`);
         }
 
-        if (!isNaN(Number(rawId))) {
+        for (const candidate of candidates) {
+          const cashQ = query(
+            collection(db, 'cashCollections'),
+            where('receiptNumber', '==', candidate),
+            limit(1)
+          );
+          const cashQSnap = await getDocs(cashQ);
+          if (!cashQSnap.empty) {
+            const d = cashQSnap.docs[0];
+            if (isMounted) {
+              setDbData({ id: d.id, ...d.data() });
+              setLoading(false);
+            }
+            return;
+          }
+        }
+
+        // 3. Try cashCollections by numeric erNo
+        if (numValue !== null && !isNaN(numValue)) {
           const erQ = query(
             collection(db, 'cashCollections'),
-            where('erNo', '==', Number(rawId)),
+            where('erNo', '==', numValue),
             limit(1)
           );
           const erQSnap = await getDocs(erQ);
@@ -70,7 +107,7 @@ export default function ReceiptPage() {
           }
         }
 
-        // 3. Fallback: Try offers
+        // 4. Try offers collection by doc ID
         const offerDocRef = doc(db, 'offers', rawId);
         const offerSnap = await getDoc(offerDocRef);
         if (offerSnap.exists()) {
@@ -81,19 +118,46 @@ export default function ReceiptPage() {
           return;
         }
 
-        const offerQ = query(
-          collection(db, 'offers'),
-          where('offerNumber', '==', rawId),
-          limit(1)
-        );
-        const offerQSnap = await getDocs(offerQ);
-        if (!offerQSnap.empty) {
-          const d = offerQSnap.docs[0];
-          if (isMounted) {
-            setDbData({ id: d.id, ...d.data() });
-            setLoading(false);
+        // 5. Try offers by offerNumber variants
+        const offerCandidates = [rawId];
+        if (cleanDigits) {
+          if (!offerCandidates.includes(cleanDigits)) offerCandidates.push(cleanDigits);
+          if (!offerCandidates.includes(`OFF-${cleanDigits}`)) offerCandidates.push(`OFF-${cleanDigits}`);
+          if (!offerCandidates.includes(`ER-${cleanDigits}`)) offerCandidates.push(`ER-${cleanDigits}`);
+        }
+        for (const cand of offerCandidates) {
+          const offerQ = query(
+            collection(db, 'offers'),
+            where('offerNumber', '==', cand),
+            limit(1)
+          );
+          const offerQSnap = await getDocs(offerQ);
+          if (!offerQSnap.empty) {
+            const d = offerQSnap.docs[0];
+            if (isMounted) {
+              setDbData({ id: d.id, ...d.data() });
+              setLoading(false);
+            }
+            return;
           }
-          return;
+        }
+
+        // 6. Try offers by receiptNumber or erNo
+        if (cleanDigits) {
+          const offRecQ = query(
+            collection(db, 'offers'),
+            where('receiptNumber', '==', cleanDigits),
+            limit(1)
+          );
+          const offRecSnap = await getDocs(offRecQ);
+          if (!offRecSnap.empty) {
+            const d = offRecSnap.docs[0];
+            if (isMounted) {
+              setDbData({ id: d.id, ...d.data() });
+              setLoading(false);
+            }
+            return;
+          }
         }
       } catch (err) {
         console.warn('Receipt Firestore fetch error:', err);
@@ -106,7 +170,7 @@ export default function ReceiptPage() {
     return () => {
       isMounted = false;
     };
-  }, [rawId]);
+  }, [rawId, cleanDigits]);
 
   // Resolve ER Number
   let erNumber = '1001';
@@ -116,7 +180,9 @@ export default function ReceiptPage() {
     erNumber = String(dbData.receiptNumber);
   } else if (searchParams.get('er')) {
     erNumber = searchParams.get('er')!;
-  } else if (/^\d{4,}$/.test(rawId)) {
+  } else if (cleanDigits.length >= 4) {
+    erNumber = cleanDigits;
+  } else if (/^\d+$/.test(rawId)) {
     erNumber = rawId;
   } else if (rawId.startsWith('RCP-') && /^\d+$/.test(rawId.replace(/\D/g, ''))) {
     const num = rawId.replace(/\D/g, '');
@@ -143,7 +209,10 @@ export default function ReceiptPage() {
 
   // Date formatting (DD-MM-YYYY)
   let receiptDate = '';
-  if (dbData?.createdAt) {
+  if (dbData?.cashReceivedDate) {
+    receiptDate = dbData.cashReceivedDate;
+  }
+  if (!receiptDate && dbData?.createdAt) {
     try {
       const d = dbData.createdAt.toDate ? dbData.createdAt.toDate() : new Date(dbData.createdAt);
       if (!isNaN(d.getTime())) {
@@ -160,6 +229,7 @@ export default function ReceiptPage() {
   if (!receiptDate && searchParams.get('date')) {
     receiptDate = searchParams.get('date')!;
   }
+  // Last resort fallback
   if (!receiptDate) {
     const today = new Date();
     const day = String(today.getDate()).padStart(2, '0');
@@ -176,9 +246,39 @@ export default function ReceiptPage() {
       : offerType === 'sqft' ? `Salafi Masjid Land Acquisition Fund (${quantity} Sq Ft Sponsorship)`
       : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
 
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [isGeneratingJpg, setIsGeneratingJpg] = useState(false);
-  const [isSharingWhatsApp, setIsSharingWhatsApp] = useState(false);
+  const [origin, setOrigin] = useState('https://kuppammasjid.web.app');
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
+  }, []);
+
+  const directReceiptUrl = `${origin}/receipt/${erNumber}`;
+
+  const hasPhone = Boolean(
+    donorPhone &&
+    donorPhone.trim() !== '' &&
+    donorPhone !== '0000000000' &&
+    donorPhone.replace(/\D/g, '').length >= 7 &&
+    !dbData?.hasNoPhone
+  );
+
+  const formattedAmountINR = new Intl.NumberFormat('en-IN').format(displayRupees);
+
+  const whatsappMessage = `*WISDOM ISLAMIC ORGANISATION — KUPPAM UNIT*\n`
+    + `*OFFICIAL E-RECEIPT*\n\n`
+    + `പ്രിയപ്പെട്ട *${donorName}*,\n`
+    + `സലഫി മസ്ജിദ് ഭൂമി ഏറ്റെടുക്കൽ ഫണ്ടിലേക്ക് താങ്കൾ നൽകിയ സംഭാവന സ്വീകരിച്ചിരിക്കുന്നു. ജസാക്കല്ലാഹു ഖൈറൻ.\n\n`
+    + `📄 *രസീത് നമ്പർ (ER.No):* ${erNumber}\n`
+    + `📅 *തീയതി (Date):* ${receiptDate}\n`
+    + `👤 *പേര് (Name):* ${donorName}${donorPlace ? ` (${donorPlace})` : ''}\n`
+    + `💰 *തുക (Amount):* ₹${formattedAmountINR}/-\n`
+    + `📝 *അക്ഷരത്തിൽ:* ${amountWords}\n`
+    + `🎯 *ഉദ്ദേശ്യം:* ${purposeText}\n\n`
+    + `🔗 *ഔദ്യോഗിക രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n`
+    + `${directReceiptUrl}\n\n`
+    + `Salafi Masjid Land Acquisition Project\n`
+    + `Salafi Center, Kuppam`;
 
   const generateReceiptCanvas = async (): Promise<HTMLCanvasElement> => {
     return new Promise((resolve, reject) => {
@@ -198,38 +298,48 @@ export default function ReceiptPage() {
         // Draw background template
         ctx.drawImage(img, 0, 0, 1600, 779);
 
-        // 1. Date (top: 34.2%, left: 77.5%)
+        // 1. Date (top: 34.2% -> 266px, left: 77.5% -> 1240px)
         ctx.fillStyle = '#0F172A';
         ctx.font = '700 22px "Roboto", sans-serif';
         ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         ctx.fillText(receiptDate, 1240, 266);
 
-        // 2. ER.No. (top: 40.0%, left: 12.8%)
+        // 2. ER.No. (top: 40.0% -> 312px, left: 12.8% -> 205px)
         ctx.fillStyle = '#B91C1C';
         ctx.font = '900 34px "Roboto", monospace';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         ctx.fillText(erNumber, 205, 312);
 
-        // 3. Contributor Name (top: 46.0%, left: 30.5%)
+        // 3. Contributor Name (top: 46.0% -> 358px, left: 30.5% -> 488px)
         ctx.fillStyle = '#0F172A';
         ctx.font = '700 28px "Roboto", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         const displayName = donorName + (donorPlace ? ` (${donorPlace})` : '');
         ctx.fillText(displayName, 488, 358);
 
-        // 4. Amount of Rupees in words (top: 55.2%, left: 31.0%)
+        // 4. Amount of Rupees in words (top: 55.2% -> 430px, left: 31.0% -> 496px)
         ctx.fillStyle = '#0F172A';
         ctx.font = 'italic 600 23px "Roboto", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         ctx.fillText(amountWords, 496, 430);
 
-        // 5. Purpose (top: 65.8%, left: 24.5%)
+        // 5. Purpose (top: 65.8% -> 513px, left: 24.5% -> 392px)
         ctx.fillStyle = '#0369A1';
         ctx.font = '600 20px "Roboto", sans-serif';
-        ctx.fillText(purposeText, 392, 512);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(purposeText, 392, 513);
 
-        // 6. Rupee Box Amount (centered at left 21.4%, top 81.8%)
+        // 6. Rupee Box Amount (Centered horizontally and vertically in box at center: 343, 637)
         ctx.fillStyle = '#0F172A';
         ctx.font = '800 36px "Roboto", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`₹ ${formattedAmountINR}/-`, 342, 638);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${formattedAmountINR}/-`, 343, 637);
 
         resolve(canvas);
       };
@@ -276,52 +386,52 @@ export default function ReceiptPage() {
     }
   };
 
-  const handleShareWhatsApp = async () => {
-    try {
-      setIsSharingWhatsApp(true);
-      const canvas = await generateReceiptCanvas();
-      // On mobile browsers supporting Web Share with files:
-      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
-        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
-        if (blob) {
-          const file = new File([blob], `Receipt-${erNumber}.jpg`, { type: 'image/jpeg' });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: `Official E-Receipt #${erNumber}`,
-              text: whatsappMessage,
-            });
-            setIsSharingWhatsApp(false);
-            return;
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Web share failed or was dismissed, falling back to direct link:', e);
-    } finally {
-      setIsSharingWhatsApp(false);
+  const handleShareWhatsApp = () => {
+    if (!hasPhone) {
+      // Contributor has no registered phone number -> open modal
+      setShowNoPhoneModal(true);
+      return;
     }
+    const targetLink = buildWhatsAppLink(donorPhone, whatsappMessage);
+    if (targetLink) {
+      window.open(targetLink, '_blank');
+    } else {
+      setShowNoPhoneModal(true);
+    }
+  };
 
-    // Direct WhatsApp Web / mobile chat fallback link
-    window.open(buildWhatsAppLink(donorPhone, whatsappMessage), '_blank');
+  const handleSendCustomWhatsApp = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanNum = customPhone.replace(/\D/g, '');
+    if (!cleanNum || cleanNum.length < 7) {
+      alert('ദയവായി സാധുവായ ഒരു മൊബൈൽ നമ്പർ നൽകുക (Please enter a valid mobile number)');
+      return;
+    }
+    const fullPhone = buildStoredPhoneNumber(cleanNum, customCountryCode);
+    const targetLink = buildWhatsAppLink(fullPhone, whatsappMessage);
+    if (targetLink) {
+      window.open(targetLink, '_blank');
+      setShowNoPhoneModal(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(directReceiptUrl);
+        setCopiedLink(true);
+        setTimeout(() => setCopiedLink(false), 2500);
+      } else {
+        prompt('Copy receipt link:', directReceiptUrl);
+      }
+    } catch {
+      prompt('Copy receipt link:', directReceiptUrl);
+    }
   };
 
   const handlePrint = () => {
     window.print();
   };
-
-  const formattedAmountINR = new Intl.NumberFormat('en-IN').format(displayRupees);
-
-  const whatsappMessage = `*WISDOM ISLAMIC ORGANISATION — KUPPAM UNIT*\n`
-    + `*OFFICIAL E-RECEIPT*\n\n`
-    + `Date: ${receiptDate}\n`
-    + `ER.No: ${erNumber}\n`
-    + `Received with thanks from: ${donorName}${donorPlace ? ` (${donorPlace})` : ''}\n`
-    + `Amount: ₹${formattedAmountINR}/-\n`
-    + `In Words: ${amountWords}\n`
-    + `For the purpose of: ${purposeText}\n\n`
-    + `Salafi Masjid Land Acquisition Project\n`
-    + `Salafi Center, Kuppam`;
 
   return (
     <div style={{ padding: '24px 0 60px', background: '#F1F5F9', minHeight: '90vh' }}>
@@ -365,10 +475,10 @@ export default function ReceiptPage() {
           </Link>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* 1. Share WhatsApp Button (Auto-opens donor chat if phone is registered, otherwise opens prompt) */}
             <button
               type="button"
               onClick={handleShareWhatsApp}
-              disabled={isSharingWhatsApp}
               className="btn btn-outline"
               style={{
                 display: 'inline-flex',
@@ -385,10 +495,35 @@ export default function ReceiptPage() {
                 fontWeight: 700,
                 boxShadow: '0 2px 6px rgba(22, 163, 74, 0.1)',
               }}
-              title="Share receipt via WhatsApp (with image attachment on mobile)"
+              title={hasPhone ? `Send receipt directly to ${donorName}'s WhatsApp (${donorPhone})` : 'Share receipt via WhatsApp (Enter custom number)'}
             >
-              {isSharingWhatsApp ? <Loader2 size={16} className="animate-spin" /> : <Share2 size={16} />}
-              <span>Share WhatsApp</span>
+              <Share2 size={16} />
+              <span>{hasPhone ? 'Share WhatsApp' : 'WhatsApp'}</span>
+            </button>
+
+            {/* 2. Direct Link Copy Button */}
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 16px',
+                fontSize: '0.88rem',
+                color: copiedLink ? '#15803D' : '#334155',
+                background: copiedLink ? '#DCFCE7' : '#FFFFFF',
+                border: `1.5px solid ${copiedLink ? '#86EFAC' : '#CBD5E1'}`,
+                borderRadius: '8px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
+                transition: 'all 0.15s ease',
+              }}
+              title="Copy direct receipt download link"
+            >
+              {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+              <span>{copiedLink ? 'Link Copied!' : 'Copy Link'}</span>
             </button>
 
             <button
@@ -665,6 +800,214 @@ export default function ReceiptPage() {
         </div>
 
       </div>
+
+      {/* No Phone / Alternate Number Sharing Modal */}
+      {showNoPhoneModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setShowNoPhoneModal(false)}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A' }}>
+                  <Share2 size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                    WhatsApp Receipt Sharing
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0 }}>
+                    Official Receipt #{erNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNoPhoneModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Alert info */}
+            <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '10px', padding: '12px', marginBottom: '18px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <AlertCircle size={18} style={{ color: '#D97706', flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.82rem', color: '#92400E', lineHeight: 1.45 }}>
+                <strong>മൊബൈൽ നമ്പർ ലഭ്യമല്ല:</strong> {donorName}-ന്റെ പേരിൽ സിസ്റ്റത്തിൽ മൊബൈൽ നമ്പർ രേഖപ്പെടുത്തിയിട്ടില്ല. താഴെ നൽകിയിട്ടുള്ള രീതികളിൽ രസീത് ഷെയർ ചെയ്യാം:
+              </div>
+            </div>
+
+            {/* Option 1: Send to another WhatsApp number */}
+            <form onSubmit={handleSendCustomWhatsApp} style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
+                മറ്റൊരു WhatsApp നമ്പറിലേക്ക് അയക്കുക:
+              </label>
+              <div style={{ display: 'flex', width: '100%', marginBottom: '10px' }}>
+                <CountryCodeSelect
+                  value={customCountryCode}
+                  onChange={setCustomCountryCode}
+                  style={{ height: '44px', borderRadius: '10px 0 0 10px' }}
+                />
+                <input
+                  type="tel"
+                  placeholder="WhatsApp Mobile Number"
+                  value={customPhone}
+                  onChange={(e) => setCustomPhone(e.target.value)}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    height: '44px',
+                    padding: '0 12px',
+                    borderRadius: '0 10px 10px 0',
+                    border: '1.5px solid var(--border-medium, #CBD5E1)',
+                    borderLeft: 'none',
+                    fontSize: '0.9rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  background: '#16A34A',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                <Send size={15} />
+                <span>ഈ നമ്പറിലേക്ക് WhatsApp അയക്കുക</span>
+              </button>
+            </form>
+
+            <div style={{ height: '1px', background: '#E2E8F0', margin: '16px 0' }} />
+
+            {/* Option 2: Copy Direct Download Link */}
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                രസീത് ഡയറക്റ്റ് ഡൗൺലോഡ് ലിങ്ക്:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={directReceiptUrl}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    background: '#F8FAFC',
+                    fontSize: '0.8rem',
+                    color: '#334155',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    background: copiedLink ? '#DCFCE7' : '#F1F5F9',
+                    color: copiedLink ? '#15803D' : '#334155',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                  <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Option 3: Direct Downloads */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => { setShowNoPhoneModal(false); handleDownloadJPG(); }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1.5px solid #CBD5E1',
+                  background: '#FFFFFF',
+                  color: '#1E293B',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <ImageIcon size={15} />
+                <span>Download Image</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowNoPhoneModal(false); handleDownloadPDF(); }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#B91C1C',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Download size={15} />
+                <span>Download PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* High-Resolution Print Styles */}
       <style jsx global>{`

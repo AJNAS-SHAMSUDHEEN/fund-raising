@@ -1197,7 +1197,7 @@ export default function CashCollectionPOSPage() {
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <a
-              href={`/receipt/${provisionalReceipt.receiptNumber}?donor=${encodeURIComponent(provisionalReceipt.contributorName)}&phone=${provisionalReceipt.contributorPhone}&place=${encodeURIComponent(provisionalReceipt.contributorPlace || '')}&amount=${provisionalReceipt.amountPaise}&type=${provisionalReceipt.offerType}&qty=${provisionalReceipt.quantity}&purpose=${encodeURIComponent(`Salafi Masjid Land Acquisition — ${provisionalReceipt.eventName}`)}`}
+              href={`/receipt/${provisionalReceipt.receiptNumber}?donor=${encodeURIComponent(provisionalReceipt.contributorName)}&phone=${provisionalReceipt.contributorPhone}&place=${encodeURIComponent(provisionalReceipt.contributorPlace || '')}&amount=${provisionalReceipt.amountPaise}&type=${provisionalReceipt.offerType}&qty=${provisionalReceipt.quantity}&er=${provisionalReceipt.receiptNumber}&purpose=${encodeURIComponent(`Salafi Masjid Land Acquisition — ${provisionalReceipt.eventName}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-primary"
