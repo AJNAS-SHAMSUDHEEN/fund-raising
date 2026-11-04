@@ -134,6 +134,7 @@ export default function OffersLedgerPage() {
   const [editType, setEditType] = useState<OfferType>('cash');
   const [editQuantity, setEditQuantity] = useState(1);
   const [editAmountINR, setEditAmountINR] = useState('');
+  const [editPaidAmountINR, setEditPaidAmountINR] = useState('');
   const [editEventName, setEditEventName] = useState('General Campaign');
   const [editStatus, setEditStatus] = useState<OfferStatus>('pledged');
   const [editReceivingEntity, setEditReceivingEntity] = useState<ReceivingEntity>('unit');
@@ -272,6 +273,8 @@ export default function OffersLedgerPage() {
     setEditType(offer.offerType);
     setEditQuantity(offer.quantity || 1);
     setEditAmountINR((offer.amountPaise / 100).toString());
+    const initialPaid = (offer.paidPaise ?? (offer.isDirectCash ? offer.amountPaise : 0)) / 100;
+    setEditPaidAmountINR(initialPaid.toString());
     setEditEventName(offer.eventName || 'General Campaign');
     setEditStatus(offer.status || 'pledged');
     setEditReceivingEntity(offer.receivingEntity || 'unit');
@@ -289,6 +292,12 @@ export default function OffersLedgerPage() {
       return;
     }
 
+    const numPaid = parseFloat(editPaidAmountINR || '0');
+    if (isNaN(numPaid) || numPaid < 0) {
+      setActionError('Please enter a valid received / paid amount in Rupees.');
+      return;
+    }
+
     const cleanPhone = editPhone.replace(/\D/g, '').slice(-10);
 
     try {
@@ -296,7 +305,9 @@ export default function OffersLedgerPage() {
       setActionError(null);
 
       const newAmountPaise = Math.round(numAmount * 100);
+      const newPaidPaise = Math.round(numPaid * 100);
       const previousAmountPaise = editingOffer.amountPaise;
+      const previousPaidPaise = editingOffer.paidPaise ?? (editingOffer.isDirectCash ? editingOffer.amountPaise : 0);
       const previousEventId = editingOffer.eventId || (editingOffer.eventName === 'General Campaign' ? 'general' : editingOffer.eventName);
 
       let eventId = 'general';
@@ -305,6 +316,8 @@ export default function OffersLedgerPage() {
       else if (editEventName !== 'General Campaign') eventId = editEventName.toLowerCase().replace(/\s+/g, '-');
 
       if (editingOffer.isDirectCash) {
+        // Direct cash payment: amountPaise is both total and paid
+        const finalCashPaise = newPaidPaise !== previousAmountPaise ? newPaidPaise : newAmountPaise;
         await updateCashCollectionInFirebase(
           editingOffer.id,
           {
@@ -313,7 +326,7 @@ export default function OffersLedgerPage() {
             contributorPlace: editPlace.trim(),
             offerType: editType,
             quantity: Math.max(1, editQuantity),
-            amountPaise: newAmountPaise,
+            amountPaise: finalCashPaise,
             receivingEntity: editReceivingEntity,
             receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
             eventName: editEventName,
@@ -333,6 +346,7 @@ export default function OffersLedgerPage() {
             offerType: editType,
             quantity: Math.max(1, editQuantity),
             totalOfferedPaise: newAmountPaise,
+            paidPaise: newPaidPaise,
             status: editStatus as any,
             receivingEntity: editReceivingEntity,
             receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
@@ -341,7 +355,8 @@ export default function OffersLedgerPage() {
           },
           previousAmountPaise,
           previousEventId,
-          adminUser?.name || 'Super Admin'
+          adminUser?.name || 'Super Admin',
+          previousPaidPaise
         );
       }
 
@@ -356,7 +371,8 @@ export default function OffersLedgerPage() {
               place: editPlace.trim(),
               offerType: editType,
               quantity: Math.max(1, editQuantity),
-              amountPaise: newAmountPaise,
+              amountPaise: editingOffer.isDirectCash ? newPaidPaise : newAmountPaise,
+              paidPaise: newPaidPaise,
               status: editStatus,
               receivingEntity: editReceivingEntity,
               receivingEntityName: editReceivingEntity === 'external' ? editReceivingEntityName.trim() : '',
@@ -439,6 +455,14 @@ export default function OffersLedgerPage() {
   // Helper calculation for edit form
   const currentDiffINR = editingOffer
     ? (parseFloat(editAmountINR || '0') - editingOffer.amountPaise / 100)
+    : 0;
+
+  const prevPaidINR = editingOffer
+    ? ((editingOffer.paidPaise ?? (editingOffer.isDirectCash ? editingOffer.amountPaise : 0)) / 100)
+    : 0;
+  const currentPaidINR = parseFloat(editPaidAmountINR || '0');
+  const currentPaidDiffINR = editingOffer && !isNaN(currentPaidINR)
+    ? (currentPaidINR - prevPaidINR)
     : 0;
 
   return (
@@ -1273,6 +1297,95 @@ export default function OffersLedgerPage() {
                   }}>
                     {currentDiffINR < 0 ? '▼ Reduction: ' : '▲ Increase: '}
                     ₹{Math.abs(currentDiffINR).toLocaleString('en-IN')} will be adjusted on the campaign grand total.
+                  </div>
+                )}
+              </div>
+
+              {/* Received / Paid Amount */}
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#15803D' }}>
+                    Received / Paid Amount (ലഭിച്ച തുക - ₹) *
+                  </label>
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 600 }}>
+                    {editingOffer.isDirectCash ? 'Direct Cash Payment' : 'Amount Received in Hand / Bank'}
+                  </span>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: '#15803D' }}>
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    value={editPaidAmountINR}
+                    onChange={(e) => {
+                      setEditPaidAmountINR(e.target.value);
+                      const pVal = parseFloat(e.target.value || '0');
+                      const tVal = parseFloat(editAmountINR || '0');
+                      if (pVal >= tVal && tVal > 0) {
+                        setEditStatus('verified');
+                      } else if (pVal > 0) {
+                        setEditStatus('partial');
+                      } else {
+                        setEditStatus('pledged');
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px 10px 32px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #86EFAC',
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      color: '#15803D',
+                      background: '#F0FDF4',
+                    }}
+                  />
+                </div>
+
+                {/* Quick Shortcuts for Received Amount */}
+                {!editingOffer.isDirectCash && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPaidAmountINR('0');
+                        setEditStatus('pledged');
+                      }}
+                      style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer' }}
+                    >
+                      ₹0 (Pending / Pledged)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPaidAmountINR(editAmountINR);
+                        setEditStatus('verified');
+                      }}
+                      style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', border: '1px solid #86EFAC', background: '#DCFCE7', color: '#15803D', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Full Paid (₹{Number(editAmountINR || 0).toLocaleString('en-IN')})
+                    </button>
+                  </div>
+                )}
+
+                {/* Paid Difference Indicator */}
+                {currentPaidDiffINR !== 0 && (
+                  <div style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: currentPaidDiffINR < 0 ? '#FEF2F2' : '#F0FDF4',
+                    border: `1px solid ${currentPaidDiffINR < 0 ? '#FECACA' : '#BBF7D0'}`,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: currentPaidDiffINR < 0 ? '#DC2626' : '#15803D',
+                  }}>
+                    {currentPaidDiffINR < 0 ? '▼ Reduction in Verified Collection: ' : '▲ Increase in Verified Collection: '}
+                    ₹{Math.abs(currentPaidDiffINR).toLocaleString('en-IN')} will be adjusted on the campaign grand total.
                   </div>
                 )}
               </div>

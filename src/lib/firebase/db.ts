@@ -139,6 +139,7 @@ export async function updateOfferInFirebase(
     offerType?: OfferType;
     quantity?: number;
     totalOfferedPaise?: number;
+    paidPaise?: number;
     status?: 'pledged' | 'partial' | 'completed' | 'cancelled' | 'verified';
     receivingEntity?: ReceivingEntity;
     receivingEntityName?: string;
@@ -147,7 +148,8 @@ export async function updateOfferInFirebase(
   },
   previousAmountPaise: number,
   previousEventId?: string,
-  adminUserName?: string
+  adminUserName?: string,
+  previousPaidPaise?: number
 ) {
   try {
     const offerRef = doc(db, 'offers', offerId);
@@ -178,17 +180,24 @@ export async function updateOfferInFirebase(
     const newAmount = updatedData.totalOfferedPaise ?? previousAmountPaise;
     const diffPaise = newAmount - previousAmountPaise;
 
-    // Adjust campaign-level total if amount changed
-    if (diffPaise !== 0) {
+    const newPaid = updatedData.paidPaise;
+    const diffPaidPaise = (newPaid !== undefined && previousPaidPaise !== undefined)
+      ? (newPaid - previousPaidPaise)
+      : 0;
+
+    // Adjust campaign-level total if offered amount or verified paid amount changed
+    if (diffPaise !== 0 || diffPaidPaise !== 0) {
       const aggRef = doc(db, 'campaignAggregates', 'main');
-      await setDoc(
-        aggRef,
-        {
-          totalOfferedPaise: increment(diffPaise),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const aggUpdates: any = {
+        updatedAt: serverTimestamp(),
+      };
+      if (diffPaise !== 0) {
+        aggUpdates.totalOfferedPaise = increment(diffPaise);
+      }
+      if (diffPaidPaise !== 0) {
+        aggUpdates.totalVerifiedPaise = increment(diffPaidPaise);
+      }
+      await setDoc(aggRef, aggUpdates, { merge: true });
     }
 
     // Handle event-level adjustments
@@ -200,6 +209,7 @@ export async function updateOfferInFirebase(
           prevEventRef,
           {
             totalOfferedPaise: increment(-previousAmountPaise),
+            totalVerifiedPaise: diffPaidPaise !== 0 ? increment(- (previousPaidPaise || 0)) : increment(0),
             offerCount: increment(-1),
             updatedAt: serverTimestamp(),
           },
@@ -213,23 +223,26 @@ export async function updateOfferInFirebase(
           {
             name: updatedData.eventName || updatedData.eventId,
             totalOfferedPaise: increment(newAmount),
+            totalVerifiedPaise: increment(newPaid ?? 0),
             offerCount: increment(1),
             updatedAt: serverTimestamp(),
           },
           { merge: true }
         );
       }
-    } else if (diffPaise !== 0 && currentEventId && currentEventId !== 'general') {
-      const eventRef = doc(db, 'events', currentEventId);
-      await setDoc(
-        eventRef,
-        {
-          name: updatedData.eventName || currentEventId,
-          totalOfferedPaise: increment(diffPaise),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+    } else {
+      if (currentEventId && currentEventId !== 'general') {
+        if (diffPaise !== 0 || diffPaidPaise !== 0) {
+          const eventRef = doc(db, 'events', currentEventId);
+          const evUpdates: any = {
+            name: updatedData.eventName || currentEventId,
+            updatedAt: serverTimestamp(),
+          };
+          if (diffPaise !== 0) evUpdates.totalOfferedPaise = increment(diffPaise);
+          if (diffPaidPaise !== 0) evUpdates.totalVerifiedPaise = increment(diffPaidPaise);
+          await setDoc(eventRef, evUpdates, { merge: true });
+        }
+      }
     }
 
     return true;
