@@ -1995,10 +1995,10 @@ function OfferWorkflowContent() {
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
               <Link
-                href={`/receipt/${submittedOffer.offerNumber}?donor=${encodeURIComponent(submittedOffer.contributorName)}&phone=${submittedOffer.contributorPhone}&amount=${submittedOffer.totalOfferedPaise}&type=${submittedOffer.offerType}&qty=${submittedOffer.quantity}&status=pledged`}
+                href={`/offer/slip/${submittedOffer.offerNumber}?donor=${encodeURIComponent(submittedOffer.contributorName)}&phone=${submittedOffer.contributorPhone}&place=${encodeURIComponent(submittedOffer.contributorPlace || '')}&amount=${submittedOffer.totalOfferedPaise}&type=${submittedOffer.offerType}&qty=${submittedOffer.quantity}&plan=${encodeURIComponent(submittedOffer.commitmentType === 'one_time' ? 'One-Time' : `${submittedOffer.commitmentMonths} Months`)}`}
                 target="_blank"
                 className="btn btn-outline"
-                style={{ padding: '12px 20px', gap: '8px', color: '#B45309', borderColor: '#FDE68A', background: '#FFFBEB' }}
+                style={{ padding: '12px 20px', gap: '8px', color: '#065F46', borderColor: '#10B981', background: '#F0FDF4' }}
               >
                 <FileText size={16} />
                 <span>View Offer Slip (വാഗ്ദാന സ്ലിപ്പ്)</span>

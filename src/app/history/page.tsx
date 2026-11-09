@@ -10,6 +10,7 @@ import {
   Heart,
   ArrowLeft,
   Receipt,
+  FileText,
   CreditCard,
   CheckCircle2,
   Clock,
@@ -267,7 +268,10 @@ export default function HistoryPage() {
                       {/* Action Row */}
                       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
                         <Link
-                          href={`/receipt/${item.id}?donor=${encodeURIComponent(session.name || 'Well Wisher')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.totalOfferedPaise}&paid=${item.paidPaise || 0}&type=${item.offerType}&qty=${item.quantity}&status=${item.status || 'pledged'}`}
+                          href={isFullyPaid
+                            ? `/receipt/${item.id}?donor=${encodeURIComponent(session.name || 'Well Wisher')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.totalOfferedPaise}&paid=${item.paidPaise || 0}&type=${item.offerType}&qty=${item.quantity}&status=${item.status || 'verified'}`
+                            : `/offer/slip/${item.id}?donor=${encodeURIComponent(session.name || 'Well Wisher')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.totalOfferedPaise}&type=${item.offerType}&qty=${item.quantity}`
+                          }
                           target="_blank"
                           className="btn btn-outline"
                           style={{
@@ -275,16 +279,16 @@ export default function HistoryPage() {
                             fontSize: '0.82rem',
                             fontWeight: 700,
                             borderRadius: '8px',
-                            color: isFullyPaid ? '#15803D' : '#B45309',
-                            borderColor: isFullyPaid ? '#86EFAC' : '#FDE68A',
-                            background: isFullyPaid ? '#F0FDF4' : '#FFFBEB',
+                            color: isFullyPaid ? '#15803D' : '#065F46',
+                            borderColor: isFullyPaid ? '#86EFAC' : '#A7F3D0',
+                            background: isFullyPaid ? '#F0FDF4' : '#F0FDF4',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '5px',
                             textDecoration: 'none',
                           }}
                         >
-                          <Receipt size={14} />
+                          {isFullyPaid ? <Receipt size={14} /> : <FileText size={14} />}
                           <span>{isFullyPaid ? 'View Payment Receipt' : 'View Offer Slip (സ്ലിപ്പ്)'}</span>
                         </Link>
 

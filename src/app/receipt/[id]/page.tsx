@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
@@ -28,6 +28,7 @@ import {
 export default function ReceiptPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const rawId = (params?.id as string) || '';
   const cleanDigits = rawId.replace(/\D/g, '');
@@ -199,6 +200,14 @@ export default function ReceiptPage() {
   const quantity = dbData?.quantity || parseInt(searchParams.get('qty') || '1', 10);
   const statusParam = dbData?.status || searchParams.get('status') || 'verified';
   const receivingEntity = dbData?.receivingEntity || searchParams.get('account') || 'unit';
+
+  // If this record is an offer/pledge without full payment, forward to dedicated Offer Slip
+  useEffect(() => {
+    if (!loading && (statusParam === 'pledged' || searchParams.get('status') === 'pledged')) {
+      const qs = searchParams.toString();
+      router.replace(`/offer/slip/${rawId}${qs ? `?${qs}` : ''}`);
+    }
+  }, [loading, statusParam, rawId, searchParams, router]);
 
   const isPartial = statusParam === 'partial';
   const amountRupees = Math.floor(rawAmountPaise / 100);

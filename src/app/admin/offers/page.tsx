@@ -927,7 +927,7 @@ export default function OffersLedgerPage() {
                           </a>
                         ) : (
                           <a
-                            href={`/receipt/${item.orderNumber}?donor=${encodeURIComponent(item.contributorName)}&phone=${item.phone}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}&status=pledged${querySuffix}`}
+                            href={`/offer/slip/${item.orderNumber}?donor=${encodeURIComponent(item.contributorName)}&phone=${item.phone}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}${querySuffix}`}
                             target="_blank"
                             title="View Official Offer Slip"
                             style={{
@@ -936,9 +936,9 @@ export default function OffersLedgerPage() {
                               gap: '4px',
                               padding: '4px 10px',
                               borderRadius: '8px',
-                              background: '#FFFBEB',
-                              color: '#B45309',
-                              border: '1px solid #FDE68A',
+                              background: '#F0FDF4',
+                              color: '#065F46',
+                              border: '1px solid #A7F3D0',
                               fontSize: '0.78rem',
                               fontWeight: 700,
                               textDecoration: 'none',
