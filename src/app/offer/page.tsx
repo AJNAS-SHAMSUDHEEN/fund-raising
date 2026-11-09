@@ -50,11 +50,12 @@ function OfferWorkflowContent() {
     : 'General Campaign';
 
   // 1. STEP 1: Offer Type & Amounts
-  // Allowed Offer Options: Amount, 5 Musalla, 2 Musalla, 1 Musalla, Cent
-  type OfferSelection = 'cash' | 'musalla_5' | 'musalla_2' | 'musalla_1' | 'cent';
+  // Allowed Offer Options: Amount, 5 Musalla, 2 Musalla, 1 Musalla, Cent, 1/4 Cent
+  type OfferSelection = 'cash' | 'musalla_5' | 'musalla_2' | 'musalla_1' | 'cent' | 'cent_quarter';
   const typeParam = searchParams.get('type');
   const initialOption: OfferSelection =
-    typeParam === 'cent' ? 'cent'
+    typeParam === 'cent_quarter' || typeParam === 'quarter_cent' ? 'cent_quarter'
+    : typeParam === 'cent' ? 'cent'
     : typeParam === 'musalla_2' ? 'musalla_2'
     : typeParam === 'musalla_1' ? 'musalla_1'
     : typeParam === 'musalla' || typeParam === 'musalla_5' ? 'musalla_5'
@@ -70,6 +71,7 @@ function OfferWorkflowContent() {
   const [musalla2Qty, setMusalla2Qty] = useState<number>(2);
   const [musalla1Qty, setMusalla1Qty] = useState<number>(1);
   const [centQty, setCentQty] = useState<number>(1);
+  const [centQuarterQty, setCentQuarterQty] = useState<number>(1);
 
   // 2. STEP 2: Payment Commitment
   const [commitmentType, setCommitmentType] = useState<CommitmentType>('one_time');
@@ -149,6 +151,14 @@ function OfferWorkflowContent() {
     calculatedTotalPaise = Math.round(centQty * centRatePaise);
     const centDisplay = centQty === 0.25 ? '1/4' : centQty === 0.5 ? '1/2' : centQty === 0.75 ? '3/4' : centQty;
     unitLabel = `${centDisplay} സെന്റ് (${(centQty * 435.6).toFixed(1)} ചതുരശ്ര അടി)`;
+  } else if (selectedOption === 'cent_quarter') {
+    offerType = 'cent';
+    const totalCents = centQuarterQty * 0.25;
+    displayQuantity = totalCents;
+    unitRatePaise = centRatePaise;
+    calculatedTotalPaise = Math.round(centQuarterQty * (centRatePaise / 4));
+    const centLabel = centQuarterQty === 1 ? '1/4' : centQuarterQty === 2 ? '1/2' : centQuarterQty === 3 ? '3/4' : centQuarterQty === 4 ? '1' : `${centQuarterQty}/4`;
+    unitLabel = `${centLabel} സെന്റ് (${(totalCents * 435.6).toFixed(1)} ചതുരശ്ര അടി)`;
   }
 
   // Calculate commitment months
@@ -184,6 +194,10 @@ function OfferWorkflowContent() {
     } else if (selectedOption === 'cent') {
       if (!centQty || centQty <= 0) {
         errs.quantity = 'കുറഞ്ഞത് 0.25 സെന്റ് തിരഞ്ഞെടുക്കുക';
+      }
+    } else if (selectedOption === 'cent_quarter') {
+      if (!centQuarterQty || centQuarterQty < 1) {
+        errs.quantity = 'കുറഞ്ഞത് 1/4 സെന്റ് തിരഞ്ഞെടുക്കുക';
       }
     }
 
@@ -613,6 +627,32 @@ function OfferWorkflowContent() {
                 <MapPin size={24} color={selectedOption === 'cent' ? 'var(--brand-800)' : 'currentColor'} />
                 <span style={{ fontWeight: 800, fontSize: '0.98rem' }}>സെന്റ് (Cent)</span>
                 <small style={{ fontSize: '0.74rem', color: selectedOption === 'cent' ? 'var(--brand-800)' : '#64748B' }}>₹5.50 ലക്ഷം / സെന്റ്</small>
+              </button>
+
+              {/* 6. 1/4 സെന്റ് (1/4 Cent) */}
+              <button
+                type="button"
+                onClick={() => setSelectedOption('cent_quarter')}
+                style={{
+                  padding: '16px 12px',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: selectedOption === 'cent_quarter' ? '2.5px solid var(--brand-800)' : '1px solid var(--border-medium)',
+                  background: selectedOption === 'cent_quarter' ? 'var(--brand-50)' : '#FFFFFF',
+                  color: selectedOption === 'cent_quarter' ? 'var(--brand-900)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: selectedOption === 'cent_quarter' ? '0 4px 12px rgba(6, 78, 59, 0.1)' : 'var(--shadow-sm)',
+                }}
+              >
+                <MapPin size={24} color={selectedOption === 'cent_quarter' ? 'var(--brand-800)' : 'currentColor'} />
+                <span style={{ fontWeight: 800, fontSize: '0.98rem' }}>1/4 സെന്റ്</span>
+                <small style={{ fontSize: '0.74rem', color: selectedOption === 'cent_quarter' ? 'var(--brand-800)' : '#64748B' }}>₹1,37,500</small>
               </button>
             </div>
 
@@ -1169,6 +1209,113 @@ function OfferWorkflowContent() {
                         }}
                       >
                         {c.label} ({formatINR(Math.round(c.qty * (centRatePaise / 100)))})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 5. 1/4 Cent Panel */}
+              {selectedOption === 'cent_quarter' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '4px' }}>
+                    <strong style={{ fontSize: '1rem', color: 'var(--brand-900)' }}>
+                      1/4 സെന്റ് സ്പോൺസർഷിപ്പ് (1/4 Cent Unit)
+                    </strong>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      നിരക്ക്: <strong>₹1,37,500</strong> / 1/4 സെന്റ്
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600, marginBottom: '10px' }}>
+                    1/4 സെന്റ് = 108.9 ചതുരശ്ര അടി (Sq. Ft.)
+                  </div>
+
+                  {/* Quantity Stepper by 1 (representing 1/4 units) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                    <button
+                      type="button"
+                      aria-label="കുറക്കുക"
+                      onClick={() => setCentQuarterQty(Math.max(1, centQuarterQty - 1))}
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--brand-900)',
+                      }}
+                    >
+                      <Minus size={22} />
+                    </button>
+                    <div style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      background: '#FFFFFF',
+                      padding: '10px',
+                      borderRadius: '12px',
+                      border: '2px solid var(--gold-500)',
+                    }}>
+                      <div style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '1.9rem',
+                        fontWeight: 900,
+                        color: 'var(--brand-900)',
+                      }}>
+                        {centQuarterQty === 1 ? '1/4' : centQuarterQty === 2 ? '1/2' : centQuarterQty === 3 ? '3/4' : centQuarterQty === 4 ? '1' : `${centQuarterQty}/4`} <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>സെന്റ്</span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>
+                        {(centQuarterQty * 108.9).toFixed(1)} ചതുരശ്ര അടി ({formatINR(centQuarterQty * 137500)})
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="കൂട്ടുക"
+                      onClick={() => setCentQuarterQty(centQuarterQty + 1)}
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--brand-900)',
+                      }}
+                    >
+                      <Plus size={22} />
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[
+                      { qty: 1, label: '1/4 സെന്റ്', amt: '₹1,37,500' },
+                      { qty: 2, label: '1/2 സെന്റ്', amt: '₹2,75,000' },
+                      { qty: 3, label: '3/4 സെന്റ്', amt: '₹4,12,500' },
+                      { qty: 4, label: '1 സെന്റ്', amt: '₹5,50,000' },
+                    ].map((c) => (
+                      <button
+                        key={c.qty}
+                        type="button"
+                        onClick={() => setCentQuarterQty(c.qty)}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          border: centQuarterQty === c.qty ? '1.5px solid var(--brand-800)' : '1px solid #CBD5E1',
+                          background: centQuarterQty === c.qty ? 'var(--brand-100)' : '#FFFFFF',
+                          color: centQuarterQty === c.qty ? 'var(--brand-900)' : '#475569',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {c.label} ({c.amt})
                       </button>
                     ))}
                   </div>
