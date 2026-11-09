@@ -6,11 +6,12 @@ export const INITIAL_CAMPAIGN: CampaignConfig = {
   targetAmountPaise: 1100000000, // ₹1,10,00,000
   landAreaCent: 19.5,
   landAreaSqFt: 8494.2,
-  centRatePaise: 56410300,       // ₹5,64,103
-  sqFtRatePaise: 129500,         // ₹1,295
+  centRatePaise: 55000000,       // ₹5,50,000
+  sqFtRatePaise: 126300,         // ₹1,263
   musallaRatePaise: 1036000,     // ₹10,360
   musallaSqFt: 8.0,
   musallaPackage5Paise: 5180000, // ₹51,800
+  musallaPackage2Paise: 2072000, // ₹20,720
   minCustomAmountPaise: 1000,   // ₹10
   maxCustomAmountPaise: 100000000, // ₹10,00,000
   liveScreenMode: 'anonymous_feed',

@@ -50,13 +50,14 @@ function OfferWorkflowContent() {
     : 'General Campaign';
 
   // 1. STEP 1: Offer Type & Amounts
-  // 4 Allowed Offer Options: Amount, 5 Musalla, 1 Musalla, Cent
-  type OfferSelection = 'cash' | 'musalla_5' | 'musalla_1' | 'cent';
+  // Allowed Offer Options: Amount, 5 Musalla, 2 Musalla, 1 Musalla, Cent
+  type OfferSelection = 'cash' | 'musalla_5' | 'musalla_2' | 'musalla_1' | 'cent';
   const typeParam = searchParams.get('type');
   const initialOption: OfferSelection =
     typeParam === 'cent' ? 'cent'
+    : typeParam === 'musalla_2' ? 'musalla_2'
     : typeParam === 'musalla_1' ? 'musalla_1'
-    : typeParam === 'musalla' ? 'musalla_5'
+    : typeParam === 'musalla' || typeParam === 'musalla_5' ? 'musalla_5'
     : 'cash';
 
   const [selectedOption, setSelectedOption] = useState<OfferSelection>(initialOption);
@@ -66,6 +67,7 @@ function OfferWorkflowContent() {
 
   // Unit quantities for the options
   const [musalla5Qty, setMusalla5Qty] = useState<number>(5);
+  const [musalla2Qty, setMusalla2Qty] = useState<number>(2);
   const [musalla1Qty, setMusalla1Qty] = useState<number>(1);
   const [centQty, setCentQty] = useState<number>(1);
 
@@ -106,7 +108,7 @@ function OfferWorkflowContent() {
   // ==========================================
   // Calculations
   // ==========================================
-  const centRatePaise = INITIAL_CAMPAIGN.centRatePaise;   // 5,64,103 INR = 56410300 paise
+  const centRatePaise = INITIAL_CAMPAIGN.centRatePaise;   // 5,50,000 INR = 55000000 paise
   const musallaRatePaise = INITIAL_CAMPAIGN.musallaRatePaise; // 10,360 INR = 1036000 paise
 
   let calculatedTotalPaise = 0;
@@ -128,6 +130,12 @@ function OfferWorkflowContent() {
     unitRatePaise = musallaRatePaise;
     calculatedTotalPaise = Math.round(musalla5Qty * musallaRatePaise);
     unitLabel = `${musalla5Qty} മുസല്ല (${musalla5Qty * 8} ചതുരശ്ര അടി - കുടുംബ പാക്കേജ്)`;
+  } else if (selectedOption === 'musalla_2') {
+    offerType = 'musalla';
+    displayQuantity = musalla2Qty;
+    unitRatePaise = musallaRatePaise;
+    calculatedTotalPaise = Math.round(musalla2Qty * musallaRatePaise);
+    unitLabel = `${musalla2Qty} മുസല്ല (${musalla2Qty * 8} ചതുരശ്ര അടി)`;
   } else if (selectedOption === 'musalla_1') {
     offerType = 'musalla';
     displayQuantity = musalla1Qty;
@@ -139,7 +147,8 @@ function OfferWorkflowContent() {
     displayQuantity = centQty;
     unitRatePaise = centRatePaise;
     calculatedTotalPaise = Math.round(centQty * centRatePaise);
-    unitLabel = `${centQty} സെന്റ് (${(centQty * 435.6).toFixed(1)} ചതുരശ്ര അടി)`;
+    const centDisplay = centQty === 0.25 ? '1/4' : centQty === 0.5 ? '1/2' : centQty === 0.75 ? '3/4' : centQty;
+    unitLabel = `${centDisplay} സെന്റ് (${(centQty * 435.6).toFixed(1)} ചതുരശ്ര അടി)`;
   }
 
   // Calculate commitment months
@@ -164,13 +173,17 @@ function OfferWorkflowContent() {
       if (!musalla5Qty || musalla5Qty < 1) {
         errs.quantity = 'കുറഞ്ഞത് 5 മുസല്ല തിരഞ്ഞെടുക്കുക';
       }
+    } else if (selectedOption === 'musalla_2') {
+      if (!musalla2Qty || musalla2Qty < 1) {
+        errs.quantity = 'കുറഞ്ഞത് 2 മുസല്ല തിരഞ്ഞെടുക്കുക';
+      }
     } else if (selectedOption === 'musalla_1') {
       if (!musalla1Qty || musalla1Qty < 1) {
         errs.quantity = 'കുറഞ്ഞത് 1 മുസല്ല തിരഞ്ഞെടുക്കുക';
       }
     } else if (selectedOption === 'cent') {
       if (!centQty || centQty <= 0) {
-        errs.quantity = 'കുറഞ്ഞത് 0.5 സെന്റ് തിരഞ്ഞെടുക്കുക';
+        errs.quantity = 'കുറഞ്ഞത് 0.25 സെന്റ് തിരഞ്ഞെടുക്കുക';
       }
     }
 
@@ -524,7 +537,33 @@ function OfferWorkflowContent() {
                 <small style={{ fontSize: '0.74rem', color: selectedOption === 'musalla_5' ? 'var(--gold-700)' : '#64748B' }}>₹51,800</small>
               </button>
 
-              {/* 3. 1 മുസല്ല */}
+              {/* 3. 2 മുസല്ല */}
+              <button
+                type="button"
+                onClick={() => setSelectedOption('musalla_2')}
+                style={{
+                  padding: '16px 12px',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: selectedOption === 'musalla_2' ? '2.5px solid var(--gold-600)' : '1px solid var(--border-medium)',
+                  background: selectedOption === 'musalla_2' ? 'var(--gold-50)' : '#FFFFFF',
+                  color: selectedOption === 'musalla_2' ? 'var(--brand-900)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: selectedOption === 'musalla_2' ? '0 4px 12px rgba(197, 160, 89, 0.15)' : 'var(--shadow-sm)',
+                }}
+              >
+                <Sparkles size={24} color={selectedOption === 'musalla_2' ? 'var(--gold-600)' : 'currentColor'} />
+                <span style={{ fontWeight: 800, fontSize: '0.98rem' }}>2 മുസല്ല</span>
+                <small style={{ fontSize: '0.74rem', color: selectedOption === 'musalla_2' ? 'var(--gold-700)' : '#64748B' }}>₹20,720</small>
+              </button>
+
+              {/* 4. 1 മുസല്ല */}
               <button
                 type="button"
                 onClick={() => setSelectedOption('musalla_1')}
@@ -550,7 +589,7 @@ function OfferWorkflowContent() {
                 <small style={{ fontSize: '0.74rem', color: selectedOption === 'musalla_1' ? 'var(--gold-700)' : '#64748B' }}>₹10,360</small>
               </button>
 
-              {/* 4. സെന്റ് (Cent) */}
+              {/* 5. സെന്റ് (Cent) */}
               <button
                 type="button"
                 onClick={() => setSelectedOption('cent')}
@@ -573,7 +612,7 @@ function OfferWorkflowContent() {
               >
                 <MapPin size={24} color={selectedOption === 'cent' ? 'var(--brand-800)' : 'currentColor'} />
                 <span style={{ fontWeight: 800, fontSize: '0.98rem' }}>സെന്റ് (Cent)</span>
-                <small style={{ fontSize: '0.74rem', color: selectedOption === 'cent' ? 'var(--brand-800)' : '#64748B' }}>₹5.64 ലക്ഷം / സെന്റ്</small>
+                <small style={{ fontSize: '0.74rem', color: selectedOption === 'cent' ? 'var(--brand-800)' : '#64748B' }}>₹5.50 ലക്ഷം / സെന്റ്</small>
               </button>
             </div>
 
@@ -816,6 +855,113 @@ function OfferWorkflowContent() {
                 </div>
               )}
 
+              {/* 2.5. 2 Musalla Panel */}
+              {selectedOption === 'musalla_2' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '4px' }}>
+                    <strong style={{ fontSize: '1rem', color: 'var(--brand-900)' }}>
+                      2 മുസല്ല പ്രാർത്ഥനാ സ്ഥലം (2 Musalla Package)
+                    </strong>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      നിരക്ക്: <strong>₹20,720</strong> / 2 മുസല്ല (16 Sq. Ft.)
+                    </span>
+                  </div>
+
+                  {/* Quantity Stepper by 2 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '14px' }}>
+                    <button
+                      type="button"
+                      aria-label="കുറക്കുക"
+                      onClick={() => setMusalla2Qty(Math.max(2, musalla2Qty - 2))}
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--brand-900)',
+                        boxShadow: 'var(--shadow-sm)',
+                      }}
+                    >
+                      <Minus size={22} />
+                    </button>
+                    <div style={{
+                      flex: 1,
+                      textAlign: 'center',
+                      background: '#FFFFFF',
+                      padding: '10px',
+                      borderRadius: '12px',
+                      border: '2px solid var(--gold-500)',
+                    }}>
+                      <div style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize: '2rem',
+                        fontWeight: 900,
+                        color: 'var(--brand-900)',
+                        lineHeight: 1.1,
+                      }}>
+                        {musalla2Qty} <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>മുസല്ല</span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 600 }}>
+                        {musalla2Qty * 8} ചതുരശ്ര അടി ({formatINR(musalla2Qty * 10360)})
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="കൂട്ടുക"
+                      onClick={() => setMusalla2Qty(musalla2Qty + 2)}
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '12px',
+                        border: '1.5px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--brand-900)',
+                        boxShadow: 'var(--shadow-sm)',
+                      }}
+                    >
+                      <Plus size={22} />
+                    </button>
+                  </div>
+
+                  {/* Quick Select Chips */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[
+                      { qty: 2, label: '2 മുസല്ല', amt: '₹20,720' },
+                      { qty: 4, label: '4 മുസല്ല', amt: '₹41,440' },
+                      { qty: 6, label: '6 മുസല്ല', amt: '₹62,160' },
+                      { qty: 8, label: '8 മുസല്ല', amt: '₹82,880' },
+                    ].map((m) => (
+                      <button
+                        key={m.qty}
+                        type="button"
+                        onClick={() => setMusalla2Qty(m.qty)}
+                        style={{
+                          padding: '8px 14px',
+                          borderRadius: '8px',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          border: musalla2Qty === m.qty ? '1.5px solid var(--gold-600)' : '1px solid #CBD5E1',
+                          background: musalla2Qty === m.qty ? 'var(--gold-100)' : '#FFFFFF',
+                          color: musalla2Qty === m.qty ? 'var(--brand-900)' : '#475569',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {m.label} ({m.amt})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 3. 1 Musalla Panel */}
               {selectedOption === 'musalla_1' && (
                 <div>
@@ -943,7 +1089,7 @@ function OfferWorkflowContent() {
                     <button
                       type="button"
                       aria-label="കുറക്കുക"
-                      onClick={() => setCentQty(Math.max(0.5, parseFloat((centQty - 0.5).toFixed(1))))}
+                      onClick={() => setCentQty(Math.max(0.25, parseFloat((centQty - 0.25).toFixed(2))))}
                       style={{
                         width: '52px',
                         height: '52px',
@@ -982,7 +1128,7 @@ function OfferWorkflowContent() {
                     <button
                       type="button"
                       aria-label="കൂട്ടുക"
-                      onClick={() => setCentQty(parseFloat((centQty + 0.5).toFixed(1)))}
+                      onClick={() => setCentQty(parseFloat((centQty + 0.25).toFixed(2)))}
                       style={{
                         width: '52px',
                         height: '52px',
@@ -1001,23 +1147,28 @@ function OfferWorkflowContent() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {[0.5, 1, 2, 5].map((c) => (
+                    {[
+                      { qty: 0.25, label: '1/4 സെന്റ്' },
+                      { qty: 0.5, label: '1/2 സെന്റ്' },
+                      { qty: 1, label: '1 സെന്റ്' },
+                      { qty: 2, label: '2 സെന്റ്' },
+                    ].map((c) => (
                       <button
-                        key={c}
+                        key={c.qty}
                         type="button"
-                        onClick={() => setCentQty(c)}
+                        onClick={() => setCentQty(c.qty)}
                         style={{
                           padding: '6px 14px',
                           borderRadius: '8px',
                           fontSize: '0.85rem',
                           fontWeight: 700,
-                          border: centQty === c ? '1.5px solid var(--brand-800)' : '1px solid #CBD5E1',
-                          background: centQty === c ? 'var(--brand-100)' : '#FFFFFF',
-                          color: centQty === c ? 'var(--brand-900)' : '#475569',
+                          border: centQty === c.qty ? '1.5px solid var(--brand-800)' : '1px solid #CBD5E1',
+                          background: centQty === c.qty ? 'var(--brand-100)' : '#FFFFFF',
+                          color: centQty === c.qty ? 'var(--brand-900)' : '#475569',
                           cursor: 'pointer',
                         }}
                       >
-                        {c} സെന്റ് ({formatINR(Math.round(c * 564103))})
+                        {c.label} ({formatINR(Math.round(c.qty * (centRatePaise / 100)))})
                       </button>
                     ))}
                   </div>

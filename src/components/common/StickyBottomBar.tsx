@@ -13,7 +13,7 @@ export default function StickyBottomBar() {
 
   // Pay Now Modal State
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<'cash' | 'musalla5' | 'musalla1' | 'cent' | 'sqft'>('cash');
+  const [selectedCategory, setSelectedCategory] = useState<'cash' | 'musalla5' | 'musalla2' | 'musalla1' | 'cent' | 'centHalf' | 'centQuarter' | 'sqft'>('cash');
   const [quantity, setQuantity] = useState<number>(1);
   const [payAmount, setPayAmount] = useState<string>(''); // Default empty, not 1000
   const [payName, setPayName] = useState<string>(session.name || '');
@@ -22,12 +22,15 @@ export default function StickyBottomBar() {
   // Predefined rates in Rupees matching the campaign
   const RATES: Record<string, number> = {
     musalla5: 51800,
+    musalla2: 20720,
     musalla1: 10360,
-    cent: 564103,
+    cent: 550000,
+    centHalf: 275000,
+    centQuarter: 137500,
     sqft: 1295,
   };
 
-  const handleSelectCategory = (cat: 'cash' | 'musalla5' | 'musalla1' | 'cent' | 'sqft') => {
+  const handleSelectCategory = (cat: 'cash' | 'musalla5' | 'musalla2' | 'musalla1' | 'cent' | 'centHalf' | 'centQuarter' | 'sqft') => {
     setSelectedCategory(cat);
     if (cat === 'cash') {
       setPayAmount('');
@@ -72,8 +75,11 @@ export default function StickyBottomBar() {
 
     let catLabel = 'ഡയറക്റ്റ് തുക';
     if (selectedCategory === 'musalla5') catLabel = `${quantity > 1 ? `${quantity} x ` : ''}5 മുസല്ല പാക്കേജ്`;
+    else if (selectedCategory === 'musalla2') catLabel = `${quantity > 1 ? `${quantity} x ` : ''}2 മുസല്ല പാക്കേജ്`;
     else if (selectedCategory === 'musalla1') catLabel = `${quantity} മുസല്ല`;
     else if (selectedCategory === 'cent') catLabel = `${quantity} സെന്റ്`;
+    else if (selectedCategory === 'centHalf') catLabel = `${quantity > 1 ? `${quantity} x ` : ''}1/2 സെന്റ്`;
+    else if (selectedCategory === 'centQuarter') catLabel = `${quantity > 1 ? `${quantity} x ` : ''}1/4 സെന്റ്`;
     else if (selectedCategory === 'sqft') catLabel = `${quantity} സ്ക്വയർ ഫീറ്റ്`;
 
     const message = `അസ്സലാമു അലൈക്കും. സലഫി മസ്ജിദ് കുപ്പം ഫണ്ട് റെയ്‌സിംഗിലേക്ക് ഞാൻ ഇപ്പോൾ (${catLabel}) ₹${cleanAmount.toLocaleString('en-IN')} നൽകാൻ ആഗ്രഹിക്കുന്നു. ദയവായി പേയ്‌മെന്റ് വിവരങ്ങൾ നൽകുക.\nപേര്: ${donorName}\nഫോൺ: ${donorPhone !== 'ലഭ്യമല്ല' ? `+91 ${donorPhone}` : donorPhone}`;
@@ -251,8 +257,11 @@ export default function StickyBottomBar() {
                   {[
                     { id: 'cash', title: 'Cash / Other', sub: 'ഏത് തുകയും', badge: null },
                     { id: 'musalla5', title: '5 Musalla', sub: '₹51,800', badge: 'Package' },
+                    { id: 'musalla2', title: '2 Musalla', sub: '₹20,720', badge: null },
                     { id: 'musalla1', title: '1 Musalla', sub: '₹10,360', badge: 'Popular' },
-                    { id: 'cent', title: '1 Cent', sub: '₹5,64,103', badge: null },
+                    { id: 'centQuarter', title: '1/4 Cent', sub: '₹1,37,500', badge: null },
+                    { id: 'centHalf', title: '1/2 Cent', sub: '₹2,75,000', badge: null },
+                    { id: 'cent', title: '1 Cent', sub: '₹5,50,000', badge: null },
                     { id: 'sqft', title: '1 Sq Ft', sub: '₹1,295', badge: null },
                   ].map((cat) => {
                     const isSelected = selectedCategory === cat.id;

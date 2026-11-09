@@ -1015,7 +1015,7 @@ export default function CashCollectionPOSPage() {
 
                   {/* Quick Chips */}
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                    {[1000, 5000, 10360, 25000, 51800].map((amt) => (
+                    {[1000, 5000, 10360, 20720, 51800, 137500, 275000, 550000].map((amt) => (
                       <button
                         key={amt}
                         type="button"

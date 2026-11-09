@@ -17,6 +17,7 @@ export interface CampaignConfig {
   musallaRatePaise: number;
   musallaSqFt: number;
   musallaPackage5Paise: number;
+  musallaPackage2Paise?: number;
   minCustomAmountPaise: number;
   maxCustomAmountPaise: number;
   liveScreenMode: 'totals_only' | 'anonymous_feed' | 'public_feed';

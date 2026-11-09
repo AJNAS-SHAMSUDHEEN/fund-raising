@@ -165,7 +165,7 @@ export default function CampaignSettingsPage() {
                   fontWeight: 700,
                 }}
               />
-              <small style={{ color: 'var(--text-muted)' }}>Standard: ₹5,64,103</small>
+              <small style={{ color: 'var(--text-muted)' }}>Standard: ₹5,50,000</small>
             </div>
 
             <div>

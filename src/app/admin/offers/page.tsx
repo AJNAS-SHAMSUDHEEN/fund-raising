@@ -1159,7 +1159,7 @@ export default function OffersLedgerPage() {
                       if (nextType === 'musalla') {
                         setEditAmountINR((editQuantity * 10360).toString());
                       } else if (nextType === 'cent') {
-                        setEditAmountINR((editQuantity * 564103).toString());
+                        setEditAmountINR((editQuantity * 550000).toString());
                       }
                     }}
                     style={{
@@ -1174,7 +1174,7 @@ export default function OffersLedgerPage() {
                   >
                     <option value="cash">Direct Cash / തുക</option>
                     <option value="musalla">Musalla (മുസല്ല - ₹10,360)</option>
-                    <option value="cent">Cent (സെന്റ് - ₹5,64,103)</option>
+                    <option value="cent">Cent (സെന്റ് - ₹5,50,000)</option>
                     <option value="sqft">Square Feet</option>
                     <option value="custom">Custom Donation</option>
                   </select>
@@ -1186,15 +1186,16 @@ export default function OffersLedgerPage() {
                   </label>
                   <input
                     type="number"
-                    min={1}
+                    min={0.25}
+                    step="any"
                     value={editQuantity}
                     onChange={(e) => {
-                      const qty = Math.max(1, parseInt(e.target.value) || 1);
+                      const qty = parseFloat(e.target.value) || 1;
                       setEditQuantity(qty);
                       if (editType === 'musalla') {
                         setEditAmountINR((qty * 10360).toString());
                       } else if (editType === 'cent') {
-                        setEditAmountINR((qty * 564103).toString());
+                        setEditAmountINR((qty * 550000).toString());
                       }
                     }}
                     style={{
@@ -1263,6 +1264,17 @@ export default function OffersLedgerPage() {
                     type="button"
                     onClick={() => {
                       setEditType('musalla');
+                      setEditQuantity(2);
+                      setEditAmountINR('20720');
+                    }}
+                    style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer' }}
+                  >
+                    2 Musalla (₹20,720)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditType('musalla');
                       setEditQuantity(5);
                       setEditAmountINR('51800');
                     }}
@@ -1274,12 +1286,34 @@ export default function OffersLedgerPage() {
                     type="button"
                     onClick={() => {
                       setEditType('cent');
-                      setEditQuantity(1);
-                      setEditAmountINR('564103');
+                      setEditQuantity(0.25);
+                      setEditAmountINR('137500');
                     }}
                     style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer' }}
                   >
-                    1 Cent (₹5,64,103)
+                    1/4 Cent (₹1,37,500)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditType('cent');
+                      setEditQuantity(0.5);
+                      setEditAmountINR('275000');
+                    }}
+                    style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer' }}
+                  >
+                    1/2 Cent (₹2,75,000)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditType('cent');
+                      setEditQuantity(1);
+                      setEditAmountINR('550000');
+                    }}
+                    style={{ fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', border: '1px solid #CBD5E1', background: '#F8FAFC', cursor: 'pointer' }}
+                  >
+                    1 Cent (₹5,50,000)
                   </button>
                 </div>
 

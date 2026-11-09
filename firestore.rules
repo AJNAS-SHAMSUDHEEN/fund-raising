@@ -59,6 +59,32 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // 7. System & Payment Settings (Merchant UPI ID, QR setup)
+    // Public can read merchant UPI ID and QR config; Admin saves settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 8. Direct Merchant UPI Payments
+    // Public can read payment slips and verification status
+    // Initiation requires a valid positive expected amount in Paise
+    // Contributors can update UTR submissions, Admins update verification statuses
+    // Deletion is strictly prevented to preserve audit trail
+    match /payments/{paymentId} {
+      allow read: if true;
+      allow create: if request.resource.data.expectedAmountPaise is number
+                    && request.resource.data.expectedAmountPaise > 0;
+      allow update: if true;
+      allow delete: if false;
+    }
+
+    // 9. UTR Registry (Duplicate UTR prevention in atomic transactions)
+    // Used in Firestore transactions to verify uniqueness and register UTRs
+    match /utrRegistry/{utr} {
+      allow read, write: if true;
+    }
+
     // Deny all other collections by default for security
     match /{document=**} {
       allow read, write: if false;

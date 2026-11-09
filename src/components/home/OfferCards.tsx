@@ -99,7 +99,9 @@ export default function OfferCards({ campaign }: OfferCardsProps) {
                 }}>
                   {formatINRFromPaise(campaign.centRatePaise)}
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>1 Cent = 435.6 Sq. Ft.</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  1 Cent = 435.6 Sq. Ft. (1/4 Cent: ₹1,37,500 • 1/2 Cent: ₹2,75,000)
+                </span>
               </div>
             </div>
 
@@ -243,7 +245,7 @@ export default function OfferCards({ campaign }: OfferCardsProps) {
                   {formatINRFromPaise(campaign.musallaRatePaise)}
                 </div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  5 Musallas = {formatINRFromPaise(campaign.musallaPackage5Paise)}
+                  2 Musalla = {formatINRFromPaise(campaign.musallaPackage2Paise || 2072000)} • 5 Musalla = {formatINRFromPaise(campaign.musallaPackage5Paise)}
                 </span>
               </div>
             </div>
