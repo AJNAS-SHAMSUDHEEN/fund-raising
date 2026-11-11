@@ -1212,18 +1212,18 @@ export default function CashCollectionPOSPage() {
                 href={buildWhatsAppLink(
                   provisionalReceipt.contributorPhone,
                   `*WISDOM ISLAMIC ORGANISATION — KUPPAM UNIT*\n\n`
-                  + `ബഹുമാനപ്പെട്ട *${provisionalReceipt.contributorName}*,\n\n`
+                  + `ബഹുമാനപ്പെട്ട *${provisionalReceipt.contributorName}*,\n`
                   + `സലഫി മസ്ജിദ് ഭൂമി ഏറ്റെടുക്കൽ ഫണ്ടിലേക്ക് താങ്കൾ നൽകിയ സംഭാവന സ്വീകരിച്ചിരിക്കുന്നു. جزاك الله خيرا كثيرا 🤲\n\n`
-                  + `📄 *രസീത് നമ്പർ (ER.No):* ${provisionalReceipt.receiptNumber}\n\n`
-                  + `📅 *തീയതി (Date):* ${provisionalReceipt.date || new Date().toLocaleDateString('en-GB')}\n\n`
-                  + `👤 *പേര് (Name):* ${provisionalReceipt.contributorName}${provisionalReceipt.contributorPlace ? ` (${provisionalReceipt.contributorPlace})` : ''}\n\n`
-                  + `💰 *തുക (Amount):* ₹${new Intl.NumberFormat('en-IN').format(Math.round(provisionalReceipt.amountPaise / 100))}/-\n\n`
-                  + `✍️ *അക്ഷരത്തിൽ:* ${numberToWordsINR(Math.round(provisionalReceipt.amountPaise / 100))}\n\n`
+                  + `📄 *രസീത് നമ്പർ (ER.No):* ${provisionalReceipt.receiptNumber}\n`
+                  + `📅 *തീയതി (Date):* ${provisionalReceipt.date || new Date().toLocaleDateString('en-GB')}\n`
+                  + `👤 *പേര് (Name):* ${provisionalReceipt.contributorName}${provisionalReceipt.contributorPlace ? ` (${provisionalReceipt.contributorPlace})` : ''}\n`
+                  + `💰 *തുക (Amount):* ₹${new Intl.NumberFormat('en-IN').format(Math.round(provisionalReceipt.amountPaise / 100))}/-\n`
+                  + `✍️ *അക്ഷരത്തിൽ:* ${numberToWordsINR(Math.round(provisionalReceipt.amountPaise / 100))}\n`
                   + `🎯 *ഉദ്ദേശ്യം:* Salafi Masjid Land Acquisition — ${provisionalReceipt.eventName}\n\n`
-                  + `📄 *രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n\n`
+                  + `📄 *രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n`
                   + `${typeof window !== 'undefined' ? window.location.origin : 'https://kuppam-collection.vercel.app'}/receipt/${provisionalReceipt.receiptNumber}\n\n`
                   + `*അല്ലാഹു താങ്കളുടെ സമ്പത്തിലും കുടുംബത്തിലും ജീവിതത്തിലും ബറക്കത്ത് നൽകട്ടെ. ആമീൻ.🤲🏻*\n\n`
-                  + `Salafi Masjid Land Acquisition Project\n\n`
+                  + `Salafi Masjid Land Acquisition Project\n`
                   + `Salafi Center, Kuppam`
                 )}
                 target="_blank"

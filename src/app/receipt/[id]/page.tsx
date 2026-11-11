@@ -230,7 +230,7 @@ export default function ReceiptPage() {
         const year = d.getFullYear();
         receiptDate = `${day}-${month}-${year}`;
       }
-    } catch {}
+    } catch { }
   }
   if (!receiptDate && dbData?.date) {
     receiptDate = dbData.date;
@@ -251,9 +251,9 @@ export default function ReceiptPage() {
   const purposeText = purposeParam
     || (dbData?.eventName ? `Salafi Masjid Land Acquisition Fund — ${dbData.eventName}`
       : offerType === 'cent' ? `Salafi Masjid Land Acquisition Fund (${quantity} Cent Sponsorship)`
-      : offerType === 'musalla' ? `Salafi Masjid Land Acquisition Fund (${quantity} Musalla Prayer Space)`
-      : offerType === 'sqft' ? `Salafi Masjid Land Acquisition Fund (${quantity} Sq Ft Sponsorship)`
-      : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
+        : offerType === 'musalla' ? `Salafi Masjid Land Acquisition Fund (${quantity} Musalla Prayer Space)`
+          : offerType === 'sqft' ? `Salafi Masjid Land Acquisition Fund (${quantity} Sq Ft Sponsorship)`
+            : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
 
   const [origin, setOrigin] = useState('https://kuppam-collection.vercel.app');
   useEffect(() => {
@@ -275,18 +275,18 @@ export default function ReceiptPage() {
   const formattedAmountINR = new Intl.NumberFormat('en-IN').format(displayRupees);
 
   const whatsappMessage = `*WISDOM ISLAMIC ORGANISATION — KUPPAM UNIT*\n\n`
-    + `ബഹുമാനപ്പെട്ട *${donorName}*,\n\n`
+    + `ബഹുമാനപ്പെട്ട *${donorName}*,\n`
     + `സലഫി മസ്ജിദ് ഭൂമി ഏറ്റെടുക്കൽ ഫണ്ടിലേക്ക് താങ്കൾ നൽകിയ സംഭാവന സ്വീകരിച്ചിരിക്കുന്നു. جزاك الله خيرا كثيرا 🤲\n\n`
-    + `📄 *രസീത് നമ്പർ (ER.No):* ${erNumber}\n\n`
-    + `📅 *തീയതി (Date):* ${receiptDate}\n\n`
-    + `👤 *പേര് (Name):* ${donorName}${donorPlace ? ` (${donorPlace})` : ''}\n\n`
-    + `💰 *തുക (Amount):* ₹${formattedAmountINR}/-\n\n`
-    + `✍️ *അക്ഷരത്തിൽ:* ${amountWords}\n\n`
+    + `📄 *രസീത് നമ്പർ (ER.No):* ${erNumber}\n`
+    + `📅 *തീയതി (Date):* ${receiptDate}\n`
+    + `👤 *പേര് (Name):* ${donorName}${donorPlace ? ` (${donorPlace})` : ''}\n`
+    + `💰 *തുക (Amount):* ₹${formattedAmountINR}/-\n`
+    + `✍️ *അക്ഷരത്തിൽ:* ${amountWords}\n`
     + `🎯 *ഉദ്ദേശ്യം:* ${purposeText}\n\n`
-    + `📄 *രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n\n`
+    + `📄 *രസീത് കാണാനും ഡൗൺലോഡ് ചെയ്യാനും താഴെയുള്ള ലിങ്കിൽ ക്ലിക്ക് ചെയ്യുക:*\n`
     + `${directReceiptUrl}\n\n`
     + `*അല്ലാഹു താങ്കളുടെ സമ്പത്തിലും കുടുംബത്തിലും ജീവിതത്തിലും ബറക്കത്ത് നൽകട്ടെ. ആമീൻ.🤲🏻*\n\n`
-    + `Salafi Masjid Land Acquisition Project\n\n`
+    + `Salafi Masjid Land Acquisition Project\n`
     + `Salafi Center, Kuppam`;
 
   const generateReceiptCanvas = async (): Promise<HTMLCanvasElement> => {
