@@ -19,6 +19,7 @@ import {
   recordLandownerPayment,
   cancelFinanceRecord,
 } from '@/lib/firebase/finance';
+import { generateFinanceReportPDF } from '@/lib/reports/financeReportGenerator';
 import {
   Building2,
   Landmark,
@@ -31,6 +32,7 @@ import {
   CheckCircle2,
   Search,
   Printer,
+  Download,
   TrendingDown,
   X,
 } from 'lucide-react';
@@ -474,6 +476,28 @@ export default function FinanceManagementPage() {
     });
   }, [records, filterType, filterAccount, searchQuery]);
 
+  // Handle Download Finance Report PDF
+  const handleDownloadPDF = () => {
+    generateFinanceReportPDF({
+      totalCashPaise: financeData.totalCashPaise,
+      districtCollectedPaise: financeData.districtCollectedPaise,
+      kuppamCollectedPaise: financeData.kuppamCollectedPaise,
+      districtExpensesPaise: financeData.districtExpensesPaise,
+      districtLandownerPaise: financeData.districtLandownerPaise,
+      districtBalancePaise: financeData.districtBalancePaise,
+      totalHandedOverToHandlersPaise: financeData.totalHandedOverToHandlersPaise,
+      totalBalanceHeldByHandlersPaise: financeData.totalBalanceHeldByHandlersPaise,
+      kuppamTotalAvailablePaise: financeData.kuppamTotalAvailablePaise,
+      totalExpensesPaise: financeData.totalExpensesPaise,
+      totalLandownerPaidPaise: financeData.totalLandownerPaidPaise,
+      overallNetBalancePaise: financeData.overallNetBalancePaise,
+      handlers,
+      handlerStats: financeData.handlerStats,
+      records: filteredRecords,
+      generatedByName: adminUser?.name || 'Administrator',
+    });
+  };
+
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* HEADER */}
@@ -604,6 +628,26 @@ export default function FinanceManagementPage() {
           >
             <Plus size={16} />
             <span>വ്യക്തിയെ ചേർക്കുക</span>
+          </button>
+
+          <button
+            onClick={handleDownloadPDF}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              background: '#047857',
+              color: '#FFFFFF',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+            }}
+          >
+            <Download size={16} />
+            <span>റിപ്പോർട്ട് ഡൗൺലോഡ് (PDF)</span>
           </button>
         </div>
       </div>
@@ -1892,22 +1936,22 @@ export default function FinanceManagementPage() {
               </div>
 
               <button
-                onClick={() => window.print()}
+                onClick={handleDownloadPDF}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '7px 12px',
-                  background: '#F1F5F9',
-                  color: '#334155',
+                  padding: '7px 14px',
+                  background: '#047857',
+                  color: '#FFFFFF',
                   fontSize: '0.78rem',
                   fontWeight: 700,
                   borderRadius: '8px',
                   cursor: 'pointer',
                 }}
               >
-                <Printer size={15} />
-                <span>പ്രിന്റ് / PDF</span>
+                <Download size={15} />
+                <span>ഡൗൺലോഡ് റിപ്പോർട്ട് (PDF)</span>
               </button>
             </div>
 
