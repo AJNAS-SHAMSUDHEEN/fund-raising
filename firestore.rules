@@ -85,6 +85,35 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // 10. Kuppam Fund Handlers & Custodians (Finance Module)
+    match /kuppamHandlers/{handlerId} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() > 0;
+      allow update, delete: if true;
+    }
+
+    // 11. Finance Records (Handovers, Expenses, Landowner Payments)
+    match /financeRecords/{recordId} {
+      allow read: if true;
+      allow create: if request.resource.data.amountPaise is number
+                    && request.resource.data.amountPaise > 0
+                    && request.resource.data.recordNumber is string
+                    && request.resource.data.type in ['handover', 'expense', 'landowner_payment']
+                    && request.resource.data.status in ['active', 'cancelled'];
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // 12. Legacy Finance Accounts & Transactions (Backwards Compatibility)
+    match /financeAccounts/{accountId} {
+      allow read, write: if true;
+    }
+
+    match /financeTransactions/{transactionId} {
+      allow read, write: if true;
+    }
+
     // Deny all other collections by default for security
     match /{document=**} {
       allow read, write: if false;
