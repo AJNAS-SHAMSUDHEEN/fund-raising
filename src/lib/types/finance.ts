@@ -1,80 +1,57 @@
-export type FinanceGroup =
-  | 'kuppam_committee'
-  | 'district_committee'
-  | 'finance_handler'
-  | 'bank'
-  | 'cash_box'
-  | 'landowner';
+export type FinanceSourceType = 'district' | 'kuppam_main' | 'handler';
 
-export type FinanceTransactionType =
-  | 'collection_allocation' // Initial allocation from fundraising collections
-  | 'transfer'              // Transfer between custodians / accounts
-  | 'expense'               // Project expense
-  | 'landowner_payment';    // Payment to landowner
+export type FinanceRecordType = 'handover' | 'expense' | 'landowner_payment';
 
-export type ExpenseCategory =
-  | 'printing'
-  | 'documentation'
-  | 'land_related'
-  | 'travel'
-  | 'office'
-  | 'other';
-
-export interface FinanceAccount {
+export interface KuppamHandler {
   id: string;
   name: string;
-  group: FinanceGroup;
-  holderName?: string;
-  holderPhone?: string;
-  accountNumber?: string; // For bank accounts
-  bankName?: string;
-  openingBalancePaise: number;
-  currentBalancePaise: number;
-  totalReceivedPaise: number;
-  totalTransferredOutPaise: number;
-  totalExpensesPaidPaise: number;
+  phone?: string;
+  role?: string; // e.g. "കൺവീനർ", "ട്രഷറർ", "ബാങ്ക് അക്കൗണ്ട്"
   notes?: string;
   isActive: boolean;
-  createdAt: any;
-  updatedAt: any;
+  createdAt?: any;
 }
 
-export interface FinanceTransaction {
+export interface FinanceRecord {
   id: string;
-  transactionNumber: string; // e.g. FT-2026-0001
-  transactionType: FinanceTransactionType;
-  fromAccountId?: string;
-  fromAccountName?: string;
-  toAccountId?: string;
-  toAccountName?: string;
+  recordNumber: string; // e.g. REC-2026-001
+  type: FinanceRecordType;
   amountPaise: number;
-  date: string; // YYYY-MM-DD
-  category?: ExpenseCategory | string;
-  expenseTitle?: string;
-  paidToRecipient?: string; // Recipient vendor, shop, or landowner
-  referenceNumber?: string; // Bank UTR, Cheque No, Receipt Ref
+  sourceType: FinanceSourceType;
+  sourceHandlerId?: string;
+  sourceHandlerName?: string;
+  targetHandlerId?: string;   // For handovers
+  targetHandlerName?: string; // For handovers
+  title: string;              // e.g. "പോസ്റ്റർ പ്രിന്റിംഗ്", "മൻസൂർക്കയ്ക്ക് ഏൽപ്പിച്ചത്"
+  category?: string;          // printing, documentation, travel, office, other
+  date: string;               // YYYY-MM-DD
   notes?: string;
-  attachmentUrl?: string; // Optional bill or receipt link
+  recipient?: string;         // Whom was it paid to
+  status: 'active' | 'cancelled';
+  cancellationReason?: string;
   createdByUid: string;
   createdByName: string;
-  status: 'completed' | 'cancelled';
-  cancelledAt?: any;
-  cancelledByUid?: string;
-  cancelledByName?: string;
-  cancellationReason?: string;
-  createdAt: any;
+  createdAt?: any;
 }
 
-export interface FinanceOverviewSummary {
-  totalCollectedPaise: number;          // Total from verified fundraising collections
-  totalAvailablePaise: number;          // Current available in all active custodians
-  totalPaidToLandownerPaise: number;    // Cumulative landowner payments
-  totalDistrictFundsPaise: number;      // Current balance in District Committee accounts/handlers
-  totalKuppamFundsPaise: number;        // Current balance in Kuppam Committee accounts/handlers
-  totalExpensesPaise: number;           // Cumulative project expenses
-  totalHeldByIndividualsPaise: number;  // Current balance held by individual handlers
-  totalInBankOrCashPaise: number;       // Current balance in bank accounts or cash boxes
-  accountsCount: number;
-  transactionsCount: number;
-}
+export interface FinanceLiveSummary {
+  // Live collections auto-synced from cashCollections
+  totalCollectedPaise: number;
+  districtCollectedPaise: number;
+  kuppamCollectedPaise: number;
 
+  // Expenses & payments
+  districtExpensesPaise: number;
+  districtLandownerPaise: number;
+  districtBalancePaise: number;
+
+  kuppamTotalHandedOverPaise: number;
+  kuppamExpensesPaise: number;
+  kuppamLandownerPaise: number;
+  kuppamMainBalancePaise: number;
+  kuppamTotalAvailablePaise: number;
+
+  totalExpensesPaise: number;
+  totalLandownerPaidPaise: number;
+  overallNetBalancePaise: number;
+}
