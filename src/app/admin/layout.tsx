@@ -218,13 +218,16 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
 
         <div>
-          {/* Admin Identity Card */}
+          {/* Admin Identity Card with Liquid Glass */}
           <div style={{
-            background: isSuperAdmin ? 'var(--brand-50)' : '#FEF3C7',
-            border: `1px solid ${isSuperAdmin ? 'var(--brand-100)' : '#FDE68A'}`,
+            background: isSuperAdmin ? 'rgba(230, 243, 236, 0.75)' : 'rgba(254, 243, 199, 0.75)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: `1px solid ${isSuperAdmin ? 'rgba(18, 86, 54, 0.15)' : 'rgba(217, 119, 6, 0.2)'}`,
             borderRadius: 'var(--radius-lg)',
             padding: '16px',
             marginBottom: '20px',
+            boxShadow: '0 4px 16px rgba(11, 59, 36, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
               <div style={{
@@ -261,7 +264,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Navigation Links */}
+          {/* Navigation Links with Glass Styling */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {currentNavItems.map((item) => {
               const Icon = item.icon;
@@ -279,8 +282,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                     borderRadius: 'var(--radius-md)',
                     fontSize: '0.9rem',
                     fontWeight: 600,
-                    background: isActive ? 'var(--brand-800)' : 'transparent',
+                    background: isActive ? 'linear-gradient(135deg, #0B3B24 0%, #167046 100%)' : 'transparent',
                     color: isActive ? '#FFFFFF' : 'var(--text-muted)',
+                    boxShadow: isActive ? '0 4px 14px rgba(11, 59, 36, 0.25)' : 'none',
                     transition: 'all 0.15s ease',
                   }}
                 >

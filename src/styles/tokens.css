@@ -17,13 +17,23 @@
   --gold-100: #FBF6EA;
   --gold-50:  #FDFBF5;
 
-  /* Neutrals & Surfaces - Warm Cream */
+  /* Neutrals & Surfaces - Warm Cream & Liquid Glass */
   --bg-base: #F8F6F0;
-  --bg-surface: #FFFFFF;
-  --bg-surface-elevated: #FFFFFF;
+  --bg-surface: rgba(255, 255, 255, 0.78);
+  --bg-surface-elevated: rgba(255, 255, 255, 0.88);
   --bg-subtle: #F0EDE4;
   --bg-dark: #071E13;
   --bg-dark-card: #0D2D1E;
+
+  /* Liquid Glass System Tokens */
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.58);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.90);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-border-subtle: rgba(226, 232, 240, 0.75);
+  --glass-blur: blur(16px) saturate(180%);
+  --glass-shadow: 0 8px 32px 0 rgba(11, 59, 36, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glass-shadow-elevated: 0 16px 40px 0 rgba(11, 59, 36, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   
   /* Text */
   --text-main: #14221A;
@@ -33,7 +43,7 @@
   --text-on-dark-muted: #A8BAAF;
 
   /* Borders & Dividers */
-  --border-light: #E7E3D8;
+  --border-light: rgba(231, 227, 216, 0.8);
   --border-medium: #D5CEBF;
   --border-dark: #1F4231;
 
