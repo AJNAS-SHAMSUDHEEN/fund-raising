@@ -20,6 +20,7 @@ import {
   Smartphone,
   Lock,
   FileText,
+  Landmark,
   Menu
 } from 'lucide-react';
 import { AdminAuthProvider, useAdminAuth, VolunteerStaff } from '@/lib/state/adminAuth';
@@ -50,7 +51,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     if (!isLoading && !adminUser && !isLoginPage) {
       router.push('/admin/login');
     } else if (!isLoading && adminUser && adminUser.role === 'volunteer') {
-      const restrictedForVolunteer = ['/admin/cash', '/admin/verify', '/admin/events', '/admin/settings'];
+      const restrictedForVolunteer = ['/admin/cash', '/admin/verify', '/admin/events', '/admin/settings', '/admin/finance'];
       if (restrictedForVolunteer.includes(pathname) || pathname === '/admin') {
         router.replace('/admin/reports');
       }
@@ -100,6 +101,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     { label: 'Cash Verification', href: '/admin/verify', icon: CheckCircle2 },
     { label: 'Transactions & Offers', href: '/admin/offers', icon: Receipt },
     { label: 'Financial Reports', href: '/admin/reports', icon: FileText },
+    { label: 'Finance Management', href: '/admin/finance', icon: Landmark },
     { label: 'Campaign Settings', href: '/admin/settings', icon: Settings },
   ];
 
