@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAdminAuth } from '@/lib/state/adminAuth';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import {
   KuppamHandler,
@@ -23,23 +23,15 @@ import {
   Building2,
   Landmark,
   Users,
-  Wallet,
-  ArrowRightLeft,
   Receipt,
-  FileSpreadsheet,
+  ArrowRightLeft,
   Plus,
   Trash2,
   AlertCircle,
   CheckCircle2,
   Search,
-  Filter,
   Printer,
-  ChevronDown,
-  ArrowUpRight,
   TrendingDown,
-  Layers,
-  Phone,
-  Calendar,
   X,
 } from 'lucide-react';
 
@@ -62,7 +54,6 @@ export default function FinanceManagementPage() {
   // 2. Kuppam Handlers & Finance Records
   const [handlers, setHandlers] = useState<KuppamHandler[]>([]);
   const [records, setRecords] = useState<FinanceRecord[]>([]);
-  const [isLoadingRecords, setIsLoadingRecords] = useState(true);
 
   // Alerts & Modals
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -104,7 +95,7 @@ export default function FinanceManagementPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter & Search states for transactions
+  // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
@@ -131,14 +122,13 @@ export default function FinanceManagementPage() {
     return () => unsub();
   }, []);
 
-  // Load Kuppam Handlers
+  // Load Kuppam Handlers & Records
   useEffect(() => {
     const unsubHandlers = subscribeToKuppamHandlers((list) => {
       setHandlers(list);
     });
     const unsubRecords = subscribeToFinanceRecords((list) => {
       setRecords(list);
-      setIsLoadingRecords(false);
     });
     return () => {
       unsubHandlers();
@@ -148,7 +138,6 @@ export default function FinanceManagementPage() {
 
   // Compute live calculations
   const financeData = useMemo(() => {
-    // 1. Collections from actual receipts
     let totalCashPaise = 0;
     let districtCollectedPaise = 0;
     let kuppamCollectedPaise = 0;
@@ -163,7 +152,6 @@ export default function FinanceManagementPage() {
       }
     });
 
-    // 2. Process active finance records
     const activeRecords = records.filter((r) => r.status === 'active');
 
     let districtExpensesPaise = 0;
@@ -172,7 +160,6 @@ export default function FinanceManagementPage() {
     let kuppamMainDirectExpensesPaise = 0;
     let kuppamMainDirectLandownerPaise = 0;
 
-    // Per-handler calculations
     const handlerStats: {
       [id: string]: {
         receivedPaise: number;
@@ -194,7 +181,6 @@ export default function FinanceManagementPage() {
       const amt = r.amountPaise || 0;
 
       if (r.type === 'handover') {
-        // Handover to a handler
         if (r.targetHandlerId && handlerStats[r.targetHandlerId]) {
           handlerStats[r.targetHandlerId].receivedPaise += amt;
         }
@@ -220,7 +206,6 @@ export default function FinanceManagementPage() {
       }
     });
 
-    // Compute net handler balances
     let totalBalanceHeldByHandlersPaise = 0;
     handlers.forEach((h) => {
       const stat = handlerStats[h.id];
@@ -230,20 +215,15 @@ export default function FinanceManagementPage() {
       }
     });
 
-    // District Balance
     const districtBalancePaise = districtCollectedPaise - districtExpensesPaise - districtLandownerPaise;
 
-    // Kuppam Main Cash remaining in treasury (not yet handed over to handlers or spent)
     const kuppamMainBalancePaise =
       kuppamCollectedPaise -
       totalHandedOverToHandlersPaise -
       kuppamMainDirectExpensesPaise -
       kuppamMainDirectLandownerPaise;
 
-    // Total Kuppam available = Kuppam Main Cash + Handlers' in-hand balances
     const kuppamTotalAvailablePaise = kuppamMainBalancePaise + totalBalanceHeldByHandlersPaise;
-
-    // Overall Net Balance in hand across all accounts
     const overallNetBalancePaise = totalCashPaise - totalExpensesPaise - totalLandownerPaidPaise;
 
     return {
@@ -264,7 +244,7 @@ export default function FinanceManagementPage() {
     };
   }, [cashCollections, records, handlers]);
 
-  // Handle Create Handler (Person)
+  // Handle Add Handler
   const handleAddHandler = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!handlerForm.name.trim()) return;
@@ -283,7 +263,7 @@ export default function FinanceManagementPage() {
     }
   };
 
-  // Handle Handover of Money to a Person
+  // Handle Handover
   const handleRecordHandover = async (e: React.FormEvent) => {
     e.preventDefault();
     const numAmt = parseFloat(handoverForm.amountRupees);
@@ -495,198 +475,485 @@ export default function FinanceManagementPage() {
   }, [records, filterType, filterAccount, searchQuery]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 pb-5">
+    <div style={{ maxWidth: '1280px', margin: '0 auto', paddingBottom: '60px' }}>
+      {/* HEADER */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          borderBottom: '1px solid #E2E8F0',
+          paddingBottom: '20px',
+          marginBottom: '24px',
+        }}
+      >
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
-              <Landmark className="w-6 h-6" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: '#E6F4EA',
+                color: '#137333',
+              }}
+            >
+              <Landmark size={22} />
             </span>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            <h1
+              style={{
+                fontSize: '1.6rem',
+                fontWeight: 800,
+                color: '#0F172A',
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
               Finance Management (ധനകാര്യ മാനേജ്‌മെന്റ്)
             </h1>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
+          <p style={{ fontSize: '0.86rem', color: '#64748B', marginTop: '6px', margin: 0 }}>
             കളക്ഷൻ തുകകൾ തത്സമയം നിരീക്ഷിക്കുക, ജില്ലാ & കുപ്പം കമ്മിറ്റി ഫണ്ടുകൾ, വ്യക്തികളുടെ കൈവശമുള്ള തുക, ചിലവുകൾ എന്നിവ കൈകാര്യം ചെയ്യുക.
           </p>
         </div>
 
-        {/* Quick Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
           <button
             onClick={() => setIsHandoverModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-semibold rounded-lg shadow-sm transition"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              background: '#2563EB',
+              color: '#FFFFFF',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+            }}
           >
-            <ArrowRightLeft className="w-4 h-4" />
-            പണം ഏൽപ്പിക്കുക
+            <ArrowRightLeft size={16} />
+            <span>പണം ഏൽപ്പിക്കുക</span>
           </button>
 
           <button
             onClick={() => setIsExpenseModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs md:text-sm font-semibold rounded-lg shadow-sm transition"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              background: '#D97706',
+              color: '#FFFFFF',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+            }}
           >
-            <Receipt className="w-4 h-4" />
-            ചിലവ് രേഖപ്പെടുത്തുക
+            <Receipt size={16} />
+            <span>ചിലവ് രേഖപ്പെടുത്തുക</span>
           </button>
 
           <button
             onClick={() => setIsLandownerModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs md:text-sm font-semibold rounded-lg shadow-sm transition"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              background: '#E11D48',
+              color: '#FFFFFF',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+            }}
           >
-            <Building2 className="w-4 h-4" />
-            ഭൂവുടമ പേയ്‌മെന്റ്
+            <Building2 size={16} />
+            <span>ഭൂവുടമ പേയ്‌മെന്റ്</span>
           </button>
 
           <button
             onClick={() => setIsHandlerModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs md:text-sm font-semibold rounded-lg shadow-sm transition"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '9px 15px',
+              background: '#1E293B',
+              color: '#FFFFFF',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+            }}
           >
-            <Plus className="w-4 h-4" />
-            വ്യക്തിയെ ചേർക്കുക
+            <Plus size={16} />
+            <span>വ്യക്തിയെ ചേർക്കുക</span>
           </button>
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* NOTIFICATIONS */}
       {successMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            color: '#166534',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={18} color="#16A34A" />
             <span>{successMessage}</span>
           </div>
-          <button onClick={() => setSuccessMessage(null)} className="text-emerald-700 hover:text-emerald-900">
-            <X className="w-4 h-4" />
+          <button onClick={() => setSuccessMessage(null)} style={{ cursor: 'pointer', color: '#166534' }}>
+            <X size={16} />
           </button>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+        <div
+          style={{
+            padding: '12px 16px',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            color: '#991B1B',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={18} color="#DC2626" />
             <span>{errorMessage}</span>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-rose-700 hover:text-rose-900">
-            <X className="w-4 h-4" />
+          <button onClick={() => setErrorMessage(null)} style={{ cursor: 'pointer', color: '#991B1B' }}>
+            <X size={16} />
           </button>
         </div>
       )}
 
-      {/* TOP KPI CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      {/* TOP 6 KPI METRICS */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: '14px',
+          marginBottom: '28px',
+        }}
+      >
         {/* Total Cash Collected */}
-        <div className="bg-white border border-slate-200 border-t-4 border-t-emerald-600 rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">ആകെ പിരിവ്</span>
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.5 rounded">Live Auto</span>
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderTop: '4px solid #059669',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>
+              ആകെ പിരിവ്
+            </span>
+            <span
+              style={{
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                background: '#E6F4EA',
+                color: '#137333',
+                padding: '2px 6px',
+                borderRadius: '4px',
+              }}
+            >
+              Live Auto
+            </span>
           </div>
-          <div className="text-xl md:text-2xl font-black text-slate-900 mt-2">
+          <div
+            style={{
+              fontSize: '1.45rem',
+              fontWeight: 900,
+              color: '#0F172A',
+              fontFamily: 'var(--font-display)',
+              marginTop: '6px',
+            }}
+          >
             {formatINR(financeData.totalCashPaise)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">റസീതുകളിൽ നിന്ന് ഓട്ടോമാറ്റിക്കായി</p>
+          <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
+            റസീതുകളിൽ നിന്ന് ഓട്ടോമാറ്റിക്കായി
+          </p>
         </div>
 
         {/* District Committee Funds */}
-        <div className="bg-white border border-slate-200 border-t-4 border-t-blue-600 rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">ജില്ലാ ഫണ്ട്</span>
-            <Building2 className="w-4 h-4 text-blue-600" />
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderTop: '4px solid #2563EB',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1E40AF', textTransform: 'uppercase' }}>
+              ജില്ലാ ഫണ്ട്
+            </span>
+            <Building2 size={16} color="#2563EB" />
           </div>
-          <div className="text-xl md:text-2xl font-black text-blue-900 mt-2">
+          <div
+            style={{
+              fontSize: '1.45rem',
+              fontWeight: 900,
+              color: '#1E3A8A',
+              fontFamily: 'var(--font-display)',
+              marginTop: '6px',
+            }}
+          >
             {formatINR(financeData.districtBalancePaise)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">ലഭിച്ചത്: {formatINR(financeData.districtCollectedPaise)}</p>
+          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
+            ലഭിച്ചത്: {formatINR(financeData.districtCollectedPaise)}
+          </p>
         </div>
 
         {/* Kuppam Committee Funds */}
-        <div className="bg-white border border-slate-200 border-t-4 border-t-teal-600 rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-teal-700 uppercase tracking-wider">കുപ്പം ഫണ്ട്</span>
-            <Landmark className="w-4 h-4 text-teal-600" />
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderTop: '4px solid #0D9488',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0F766E', textTransform: 'uppercase' }}>
+              കുപ്പം ഫണ്ട്
+            </span>
+            <Landmark size={16} color="#0D9488" />
           </div>
-          <div className="text-xl md:text-2xl font-black text-teal-900 mt-2">
+          <div
+            style={{
+              fontSize: '1.45rem',
+              fontWeight: 900,
+              color: '#134E4A',
+              fontFamily: 'var(--font-display)',
+              marginTop: '6px',
+            }}
+          >
             {formatINR(financeData.kuppamTotalAvailablePaise)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">ലഭിച്ചത്: {formatINR(financeData.kuppamCollectedPaise)}</p>
+          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
+            ലഭിച്ചത്: {formatINR(financeData.kuppamCollectedPaise)}
+          </p>
         </div>
 
         {/* Total Handed Over to People */}
-        <div className="bg-white border border-slate-200 border-t-4 border-t-indigo-600 rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">ആളുകളുടെ കൈയിൽ</span>
-            <Users className="w-4 h-4 text-indigo-600" />
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderTop: '4px solid #4F46E5',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3730A3', textTransform: 'uppercase' }}>
+              ആളുകളുടെ കയ്യിൽ
+            </span>
+            <Users size={16} color="#4F46E5" />
           </div>
-          <div className="text-xl md:text-2xl font-black text-indigo-900 mt-2">
+          <div
+            style={{
+              fontSize: '1.45rem',
+              fontWeight: 900,
+              color: '#312E81',
+              fontFamily: 'var(--font-display)',
+              marginTop: '6px',
+            }}
+          >
             {formatINR(financeData.totalBalanceHeldByHandlersPaise)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">{handlers.length} വ്യക്തികൾ / അക്കൗണ്ട്</p>
+          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
+            {handlers.length} വ്യക്തികൾ / അക്കൗണ്ട്
+          </p>
         </div>
 
         {/* Total Paid to Landowner */}
-        <div className="bg-white border border-slate-200 border-t-4 border-t-rose-600 rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-rose-700 uppercase tracking-wider">ഭൂവുടമയ്ക്ക്</span>
-            <TrendingDown className="w-4 h-4 text-rose-600" />
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderTop: '4px solid #E11D48',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>
+              ഭൂവുടമയ്ക്ക്
+            </span>
+            <TrendingDown size={16} color="#E11D48" />
           </div>
-          <div className="text-xl md:text-2xl font-black text-rose-900 mt-2">
+          <div
+            style={{
+              fontSize: '1.45rem',
+              fontWeight: 900,
+              color: '#881337',
+              fontFamily: 'var(--font-display)',
+              marginTop: '6px',
+            }}
+          >
             {formatINR(financeData.totalLandownerPaidPaise)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">ഭൂമി ഏറ്റെടുക്കലിന് നൽകിയത്</p>
+          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
+            ഭൂമി ഏറ്റെടുക്കലിന് നൽകിയത്
+          </p>
         </div>
 
         {/* Total Expenses */}
-        <div className="bg-white border border-slate-200 border-t-4 border-t-amber-600 rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">ആകെ ചിലവുകൾ</span>
-            <Receipt className="w-4 h-4 text-amber-600" />
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderTop: '4px solid #D97706',
+            borderRadius: '12px',
+            padding: '16px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>
+              ആകെ ചിലവുകൾ
+            </span>
+            <Receipt size={16} color="#D97706" />
           </div>
-          <div className="text-xl md:text-2xl font-black text-amber-900 mt-2">
+          <div
+            style={{
+              fontSize: '1.45rem',
+              fontWeight: 900,
+              color: '#78350F',
+              fontFamily: 'var(--font-display)',
+              marginTop: '6px',
+            }}
+          >
             {formatINR(financeData.totalExpensesPaise)}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">പ്രിന്റിംഗ് & മറ്റു ചിലവുകൾ</p>
+          <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
+            പ്രിന്റിംഗ് & മറ്റു ചിലവുകൾ
+          </p>
         </div>
       </div>
 
-      {/* TABS NAVIGATION */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pt-2">
+      {/* NAVIGATION TABS */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          borderBottom: '2px solid #E2E8F0',
+          marginBottom: '24px',
+          overflowX: 'auto',
+        }}
+      >
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition ${
-            activeTab === 'overview'
-              ? 'border-emerald-600 text-emerald-700 bg-emerald-50/50'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
+          style={{
+            padding: '10px 18px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderBottom: activeTab === 'overview' ? '3px solid #059669' : '3px solid transparent',
+            color: activeTab === 'overview' ? '#065F46' : '#64748B',
+            background: activeTab === 'overview' ? '#F0FDF4' : 'transparent',
+            borderRadius: '8px 8px 0 0',
+            marginBottom: '-2px',
+          }}
         >
           🏛️ പ്രധാന അവലോകനം (Overview)
         </button>
+
         <button
           onClick={() => setActiveTab('kuppam')}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition ${
-            activeTab === 'kuppam'
-              ? 'border-teal-600 text-teal-700 bg-teal-50/50'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
+          style={{
+            padding: '10px 18px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderBottom: activeTab === 'kuppam' ? '3px solid #0D9488' : '3px solid transparent',
+            color: activeTab === 'kuppam' ? '#0F766E' : '#64748B',
+            background: activeTab === 'kuppam' ? '#F0FDFA' : 'transparent',
+            borderRadius: '8px 8px 0 0',
+            marginBottom: '-2px',
+          }}
         >
           👥 കുപ്പം കമ്മിറ്റിയും ആളുകളും ({handlers.length})
         </button>
+
         <button
           onClick={() => setActiveTab('district')}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition ${
-            activeTab === 'district'
-              ? 'border-blue-600 text-blue-700 bg-blue-50/50'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
+          style={{
+            padding: '10px 18px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderBottom: activeTab === 'district' ? '3px solid #2563EB' : '3px solid transparent',
+            color: activeTab === 'district' ? '#1E40AF' : '#64748B',
+            background: activeTab === 'district' ? '#EFF6FF' : 'transparent',
+            borderRadius: '8px 8px 0 0',
+            marginBottom: '-2px',
+          }}
         >
           🏛️ ജില്ലാ കമ്മിറ്റി ഫണ്ട്
         </button>
+
         <button
           onClick={() => setActiveTab('ledger')}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 transition ${
-            activeTab === 'ledger'
-              ? 'border-slate-800 text-slate-900 bg-slate-100'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
+          style={{
+            padding: '10px 18px',
+            fontSize: '0.88rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            borderBottom: activeTab === 'ledger' ? '3px solid #0F172A' : '3px solid transparent',
+            color: activeTab === 'ledger' ? '#0F172A' : '#64748B',
+            background: activeTab === 'ledger' ? '#F1F5F9' : 'transparent',
+            borderRadius: '8px 8px 0 0',
+            marginBottom: '-2px',
+          }}
         >
           📜 എല്ലാ ഇടപാടുകളുടെയും കണക്ക് ({records.length})
         </button>
@@ -694,59 +961,124 @@ export default function FinanceManagementPage() {
 
       {/* TAB 1: OVERVIEW */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* TWO MAIN CARDS: DISTRICT vs KUPPAM */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
             {/* DISTRICT COMMITTEE CARD */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="p-2 bg-blue-100 text-blue-700 rounded-lg">
-                    <Building2 className="w-5 h-5" />
+            <div
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '22px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid #F1F5F9',
+                  paddingBottom: '14px',
+                  marginBottom: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span
+                    style={{
+                      padding: '8px',
+                      background: '#DBEAFE',
+                      color: '#1D4ED8',
+                      borderRadius: '8px',
+                      display: 'flex',
+                    }}
+                  >
+                    <Building2 size={20} />
                   </span>
                   <div>
-                    <h3 className="font-bold text-slate-900">ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്</h3>
-                    <p className="text-xs text-slate-500">ജില്ലാ കമ്മിറ്റിയുടെ ഫണ്ട് നേരിട്ട് ജില്ലാ അക്കൗണ്ടിൽ</p>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
+                      ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>
+                      ജില്ലാ കമ്മിറ്റിയുടെ ഫണ്ട് നേരിട്ട് ജില്ലാ അക്കൗണ്ടിൽ
+                    </p>
                   </div>
                 </div>
-                <span className="text-xs font-bold px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '20px',
+                    background: '#EFF6FF',
+                    color: '#1D4ED8',
+                    border: '1px solid #BFDBFE',
+                  }}
+                >
                   District Account
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500">കളക്ഷൻ വഴി ലഭിച്ചത്:</span>
-                  <div className="text-base font-bold text-slate-800 mt-1">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
+                <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>കളക്ഷൻ വഴി ലഭിച്ചത്:</span>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '3px' }}>
                     {formatINR(financeData.districtCollectedPaise)}
                   </div>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500">ചിലവാക്കിയ തുക:</span>
-                  <div className="text-base font-bold text-amber-700 mt-1">
+                <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>ചിലവാക്കിയ തുക:</span>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#B45309', marginTop: '3px' }}>
                     {formatINR(financeData.districtExpensesPaise)}
                   </div>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500">ഭൂവുടമയ്ക്ക് നൽകിയത്:</span>
-                  <div className="text-base font-bold text-rose-700 mt-1">
+                <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>ഭൂവുടമയ്ക്ക് നൽകിയത്:</span>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#E11D48', marginTop: '3px' }}>
                     {formatINR(financeData.districtLandownerPaise)}
                   </div>
                 </div>
-                <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                  <span className="text-xs font-semibold text-blue-700">ജില്ലാ ഫണ്ട് ബാക്കി:</span>
-                  <div className="text-lg font-black text-blue-900 mt-1">
+                <div
+                  style={{
+                    padding: '12px',
+                    background: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    borderRadius: '10px',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E40AF' }}>ജില്ലാ ഫണ്ട് ബാക്കി:</span>
+                  <div
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 900,
+                      color: '#1E3A8A',
+                      fontFamily: 'var(--font-display)',
+                      marginTop: '3px',
+                    }}
+                  >
                     {formatINR(financeData.districtBalancePaise)}
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => {
                     setExpenseForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
                     setIsExpenseModalOpen(true);
                   }}
-                  className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg text-center transition"
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
                 >
                   + ചിലവ് നൽകുക
                 </button>
@@ -755,7 +1087,17 @@ export default function FinanceManagementPage() {
                     setLandownerForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
                     setIsLandownerModalOpen(true);
                   }}
-                  className="flex-1 py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-semibold rounded-lg text-center transition"
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    background: '#FFE4E6',
+                    color: '#9F1239',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
                 >
                   + ഭൂവുടമ പേയ്‌മെന്റ്
                 </button>
@@ -763,59 +1105,144 @@ export default function FinanceManagementPage() {
             </div>
 
             {/* KUPPAM COMMITTEE MAIN TREASURY CARD */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="p-2 bg-teal-100 text-teal-700 rounded-lg">
-                    <Landmark className="w-5 h-5" />
+            <div
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '22px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid #F1F5F9',
+                  paddingBottom: '14px',
+                  marginBottom: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span
+                    style={{
+                      padding: '8px',
+                      background: '#CCFBF1',
+                      color: '#0F766E',
+                      borderRadius: '8px',
+                      display: 'flex',
+                    }}
+                  >
+                    <Landmark size={20} />
                   </span>
                   <div>
-                    <h3 className="font-bold text-slate-900">കുപ്പം യൂണിറ്റ് കമ്മിറ്റി ഫണ്ട്</h3>
-                    <p className="text-xs text-slate-500">ആളുകളുടെ കൈവശമുള്ള തുകയും മെയിൻ ബാലൻസും</p>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
+                      കുപ്പം യൂണിറ്റ് കമ്മിറ്റി ഫണ്ട്
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>
+                      ആളുകളുടെ കൈവശമുള്ള തുകയും മെയിൻ ബാലൻസും
+                    </p>
                   </div>
                 </div>
-                <span className="text-xs font-bold px-2 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full">
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '3px 8px',
+                    borderRadius: '20px',
+                    background: '#F0FDFA',
+                    color: '#0F766E',
+                    border: '1px solid #99F6E4',
+                  }}
+                >
                   Kuppam Unit
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500">ആകെ കുപ്പത്തിന് ലഭിച്ചത്:</span>
-                  <div className="text-base font-bold text-slate-800 mt-1">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
+                <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>ആകെ കുപ്പത്തിന് ലഭിച്ചത്:</span>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '3px' }}>
                     {formatINR(financeData.kuppamCollectedPaise)}
                   </div>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <span className="text-xs text-slate-500">വ്യക്തികൾക്ക് ഏൽപ്പിച്ചത്:</span>
-                  <div className="text-base font-bold text-indigo-700 mt-1">
+                <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>വ്യക്തികൾക്ക് ഏൽപ്പിച്ചത്:</span>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#4338CA', marginTop: '3px' }}>
                     {formatINR(financeData.totalHandedOverToHandlersPaise)}
                   </div>
                 </div>
-                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-lg">
-                  <span className="text-xs font-semibold text-indigo-700">വ്യക്തികളുടെ കൈവശമുള്ള ബാക്കി:</span>
-                  <div className="text-base font-bold text-indigo-900 mt-1">
+                <div
+                  style={{
+                    padding: '12px',
+                    background: '#EEF2FF',
+                    border: '1px solid #C7D2FE',
+                    borderRadius: '10px',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3730A3' }}>
+                    വ്യക്തികളുടെ കൈവശമുള്ള ബാക്കി:
+                  </span>
+                  <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#312E81', marginTop: '3px' }}>
                     {formatINR(financeData.totalBalanceHeldByHandlersPaise)}
                   </div>
                 </div>
-                <div className="p-3 bg-teal-50 border border-teal-100 rounded-lg">
-                  <span className="text-xs font-semibold text-teal-700">കുപ്പത്തിന്റെ ആകെ അവൈലബിൾ ഫണ്ട്:</span>
-                  <div className="text-lg font-black text-teal-900 mt-1">
+                <div
+                  style={{
+                    padding: '12px',
+                    background: '#F0FDFA',
+                    border: '1px solid #99F6E4',
+                    borderRadius: '10px',
+                  }}
+                >
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0F766E' }}>
+                    കുപ്പത്തിന്റെ ആകെ അവൈലബിൾ ഫണ്ട്:
+                  </span>
+                  <div
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 900,
+                      color: '#134E4A',
+                      fontFamily: 'var(--font-display)',
+                      marginTop: '3px',
+                    }}
+                  >
                     {formatINR(financeData.kuppamTotalAvailablePaise)}
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => setIsHandoverModalOpen(true)}
-                  className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg text-center transition"
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    background: '#2563EB',
+                    color: '#FFFFFF',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
                 >
                   🤝 പണം ഏൽപ്പിക്കുക
                 </button>
                 <button
                   onClick={() => setActiveTab('kuppam')}
-                  className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg text-center transition"
+                  style={{
+                    flex: 1,
+                    padding: '9px 12px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                  }}
                 >
                   വ്യക്തികളെ കാണുക ({handlers.length}) →
                 </button>
@@ -824,34 +1251,90 @@ export default function FinanceManagementPage() {
           </div>
 
           {/* QUICK SUMMARY OF PEOPLE HOLDING KUPPAM MONEY */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+          <div
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '14px',
+              padding: '22px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '18px',
+              }}
+            >
               <div>
-                <h3 className="font-bold text-slate-900">കുപ്പം ഫണ്ട് കൈവശമുള്ള വ്യക്തികൾ (Handlers & Accounts)</h3>
-                <p className="text-xs text-slate-500">ആരുടെയൊക്കെ കൈവശമാണ് പണം ഉള്ളതെന്നും ഓരോരുത്തരുടെയും ബാലൻസും</p>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                  കുപ്പം ഫണ്ട് കൈവശമുള്ള വ്യക്തികൾ (Handlers & Accounts)
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748B', marginTop: '2px' }}>
+                  ആരുടെയൊക്കെ കൈവശമാണ് പണം ഉള്ളതെന്നും ഓരോരുത്തരുടെയും ബാലൻസും
+                </p>
               </div>
               <button
                 onClick={() => setIsHandlerModalOpen(true)}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: '#065F46',
+                  background: '#ECFDF5',
+                  padding: '7px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #A7F3D0',
+                  cursor: 'pointer',
+                }}
               >
-                <Plus className="w-3.5 h-3.5" /> പുതിയ ആളെ ചേർക്കുക
+                <Plus size={14} /> പുതിയ ആളെ ചേർക്കുക
               </button>
             </div>
 
             {handlers.length === 0 ? (
-              <div className="text-center py-8 border border-dashed border-slate-200 rounded-lg">
-                <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-600 font-medium">ഇതുവരെ ആളുകളെ/അക്കൗണ്ടുകളെ ചേർത്തിട്ടില്ല</p>
-                <p className="text-xs text-slate-400 mt-1">കുപ്പത്തിന്റെ പണം കൈവശം വെക്കുന്ന ആളുകളുടെ പേര് ചേർക്കുക (ഉദാ: മൻസൂർക്ക, ബാങ്ക്)</p>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '36px 16px',
+                  border: '1.5px dashed #CBD5E1',
+                  borderRadius: '12px',
+                }}
+              >
+                <Users size={36} color="#94A3B8" style={{ margin: '0 auto 10px' }} />
+                <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', margin: 0 }}>
+                  ഇതുവരെ ആളുകളെ/അക്കൗണ്ടുകളെ ചേർത്തിട്ടില്ല
+                </p>
+                <p style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '4px', marginBottom: '14px' }}>
+                  കുപ്പത്തിന്റെ പണം കൈവശം വെക്കുന്ന ആളുകളുടെ പേര് ചേർക്കുക (ഉദാ: മൻസൂർക്ക, ബാങ്ക്)
+                </p>
                 <button
                   onClick={() => setIsHandlerModalOpen(true)}
-                  className="mt-3 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg"
+                  style={{
+                    padding: '8px 16px',
+                    background: '#059669',
+                    color: '#FFFFFF',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   + ആളെ ചേർക്കുക
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '14px',
+                }}
+              >
                 {handlers.map((h) => {
                   const stat = financeData.handlerStats[h.id] || {
                     receivedPaise: 0,
@@ -862,36 +1345,77 @@ export default function FinanceManagementPage() {
                   return (
                     <div
                       key={h.id}
-                      className="p-4 bg-slate-50/70 border border-slate-200 rounded-xl hover:border-slate-300 transition"
+                      style={{
+                        padding: '16px',
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '12px',
+                      }}
                     >
-                      <div className="flex items-start justify-between">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                         <div>
-                          <h4 className="font-bold text-slate-900 text-sm">{h.name}</h4>
-                          <span className="text-[11px] text-slate-500">{h.role || 'കമ്മിറ്റി അംഗം'}</span>
+                          <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
+                            {h.name}
+                          </h4>
+                          <span style={{ fontSize: '0.72rem', color: '#64748B' }}>{h.role || 'കമ്മിറ്റി അംഗം'}</span>
                         </div>
-                        <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        <span
+                          style={{
+                            fontSize: '0.84rem',
+                            fontWeight: 900,
+                            padding: '3px 8px',
+                            borderRadius: '20px',
+                            background: '#E6F4EA',
+                            color: '#137333',
+                            border: '1px solid #CEEAD6',
+                          }}
+                        >
                           {formatINR(stat.balancePaise)}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200/80 text-[11px]">
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '8px',
+                          marginTop: '12px',
+                          paddingTop: '10px',
+                          borderTop: '1px solid #E2E8F0',
+                          fontSize: '0.75rem',
+                        }}
+                      >
                         <div>
-                          <span className="text-slate-500">കൈപ്പറ്റിയത്:</span>
-                          <div className="font-semibold text-slate-800">{formatINR(stat.receivedPaise)}</div>
+                          <span style={{ color: '#64748B' }}>കൈപ്പറ്റിയത്:</span>
+                          <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
+                            {formatINR(stat.receivedPaise)}
+                          </div>
                         </div>
                         <div>
-                          <span className="text-slate-500">ചിലവാക്കിയത്:</span>
-                          <div className="font-semibold text-amber-700">{formatINR(stat.expensesPaise)}</div>
+                          <span style={{ color: '#64748B' }}>ചിലവാക്കിയത്:</span>
+                          <div style={{ fontWeight: 700, color: '#B45309', marginTop: '2px' }}>
+                            {formatINR(stat.expensesPaise)}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex gap-2 mt-3 pt-2">
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '12px' }}>
                         <button
                           onClick={() => {
                             setHandoverForm((prev) => ({ ...prev, targetHandlerId: h.id }));
                             setIsHandoverModalOpen(true);
                           }}
-                          className="flex-1 py-1 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold rounded text-center transition"
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            background: '#EFF6FF',
+                            color: '#1D4ED8',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                          }}
                         >
                           + പണം നൽകുക
                         </button>
@@ -904,7 +1428,17 @@ export default function FinanceManagementPage() {
                             }));
                             setIsExpenseModalOpen(true);
                           }}
-                          className="flex-1 py-1 px-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-[11px] font-bold rounded text-center transition"
+                          style={{
+                            flex: 1,
+                            padding: '6px 8px',
+                            background: '#FEF3C7',
+                            color: '#B45309',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                          }}
                         >
                           + ചിലവ് നൽകുക
                         </button>
@@ -920,33 +1454,70 @@ export default function FinanceManagementPage() {
 
       {/* TAB 2: KUPPAM COMMITTEE & HANDLERS */}
       {activeTab === 'kuppam' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-teal-50 border border-teal-200 p-4 rounded-xl">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              background: '#F0FDFA',
+              border: '1px solid #CCFBF1',
+              padding: '16px 20px',
+              borderRadius: '12px',
+            }}
+          >
             <div>
-              <h3 className="font-bold text-teal-950 text-base">കുപ്പം കമ്മിറ്റി ഫണ്ടും വ്യക്തികളും</h3>
-              <p className="text-xs text-teal-800 mt-0.5">
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#134E4A' }}>
+                കുപ്പം കമ്മിറ്റി ഫണ്ടും വ്യക്തികളും
+              </h3>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#0F766E' }}>
                 കുപ്പം കളക്ഷനിൽ നിന്ന് ലഭിച്ച ആകെ തുക: <strong>{formatINR(financeData.kuppamCollectedPaise)}</strong>.
                 ഇതിൽ നിന്ന് ആർക്കൊക്കെ എത്ര തുക കൈമാറി, ഓരോരുത്തരുടെയും കൈവശം ഇപ്പോൾ എത്ര ബാക്കിയുണ്ട് എന്ന് ഇവിടെ കാണാം.
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => setIsHandlerModalOpen(true)}
-                className="px-3 py-2 bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold rounded-lg shadow-xs transition"
+                style={{
+                  padding: '8px 14px',
+                  background: '#0F766E',
+                  color: '#FFFFFF',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 + പുതിയ വ്യക്തിയെ ചേർക്കുക
               </button>
               <button
                 onClick={() => setIsHandoverModalOpen(true)}
-                className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-xs transition"
+                style={{
+                  padding: '8px 14px',
+                  background: '#2563EB',
+                  color: '#FFFFFF',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 🤝 പണം ഏൽപ്പിക്കുക
               </button>
             </div>
           </div>
 
-          {/* List of Handlers */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* List of Handlers Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '16px',
+            }}
+          >
             {handlers.map((h) => {
               const stat = financeData.handlerStats[h.id] || {
                 receivedPaise: 0,
@@ -958,60 +1529,128 @@ export default function FinanceManagementPage() {
               return (
                 <div
                   key={h.id}
-                  className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs hover:shadow-sm transition"
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '14px',
+                    padding: '20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                  }}
                 >
-                  <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      borderBottom: '1px solid #F1F5F9',
+                      paddingBottom: '12px',
+                    }}
+                  >
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 bg-slate-100 text-slate-700 rounded-md">
-                          <Users className="w-4 h-4" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            padding: '6px',
+                            background: '#F1F5F9',
+                            color: '#475569',
+                            borderRadius: '6px',
+                            display: 'flex',
+                          }}
+                        >
+                          <Users size={16} />
                         </span>
-                        <h4 className="font-bold text-slate-900 text-base">{h.name}</h4>
+                        <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: '#0F172A' }}>
+                          {h.name}
+                        </h4>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                        <span>{h.role || 'കമ്മിറ്റി അംഗം'}</span>
-                        {h.phone && <span>• 📞 {h.phone}</span>}
+                      <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
+                        {h.role || 'കമ്മിറ്റി അംഗം'} {h.phone && `• 📞 ${h.phone}`}
                       </div>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                    <div style={{ textAlign: 'right' }}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          color: '#64748B',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          display: 'block',
+                        }}
+                      >
                         കൈവശമുള്ള ബാക്കി
                       </span>
                       <span
-                        className={`text-lg font-black ${
-                          stat.balancePaise > 0 ? 'text-emerald-700' : 'text-slate-700'
-                        }`}
+                        style={{
+                          fontSize: '1.2rem',
+                          fontWeight: 900,
+                          color: stat.balancePaise > 0 ? '#15803D' : '#334155',
+                          fontFamily: 'var(--font-display)',
+                        }}
                       >
                         {formatINR(stat.balancePaise)}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 my-4 text-center">
-                    <div className="p-2.5 bg-slate-50 rounded-lg">
-                      <span className="text-[10px] text-slate-500 uppercase font-semibold block">കൈപ്പറ്റിയത്</span>
-                      <span className="text-xs font-bold text-slate-800">{formatINR(stat.receivedPaise)}</span>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: '8px',
+                      margin: '14px 0',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ padding: '8px', background: '#F8FAFC', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', display: 'block' }}>
+                        കൈപ്പറ്റിയത്
+                      </span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A' }}>
+                        {formatINR(stat.receivedPaise)}
+                      </span>
                     </div>
-                    <div className="p-2.5 bg-slate-50 rounded-lg">
-                      <span className="text-[10px] text-slate-500 uppercase font-semibold block">ചിലവാക്കിയത്</span>
-                      <span className="text-xs font-bold text-amber-700">{formatINR(stat.expensesPaise)}</span>
+                    <div style={{ padding: '8px', background: '#F8FAFC', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', display: 'block' }}>
+                        ചിലവാക്കിയത്
+                      </span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#B45309' }}>
+                        {formatINR(stat.expensesPaise)}
+                      </span>
                     </div>
-                    <div className="p-2.5 bg-slate-50 rounded-lg">
-                      <span className="text-[10px] text-slate-500 uppercase font-semibold block">ഭൂവുടമയ്ക്ക്</span>
-                      <span className="text-xs font-bold text-rose-700">{formatINR(stat.landownerPaise)}</span>
+                    <div style={{ padding: '8px', background: '#F8FAFC', borderRadius: '8px' }}>
+                      <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', display: 'block' }}>
+                        ഭൂവുടമയ്ക്ക്
+                      </span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#E11D48' }}>
+                        {formatINR(stat.landownerPaise)}
+                      </span>
                     </div>
                   </div>
 
-                  {h.notes && <p className="text-xs text-slate-500 italic mb-4">കുറിപ്പ്: {h.notes}</p>}
+                  {h.notes && (
+                    <p style={{ fontSize: '0.75rem', color: '#64748B', fontStyle: 'italic', marginBottom: '14px' }}>
+                      കുറിപ്പ്: {h.notes}
+                    </p>
+                  )}
 
-                  <div className="flex gap-2 pt-2 border-t border-slate-100">
+                  <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid #F1F5F9' }}>
                     <button
                       onClick={() => {
                         setHandoverForm((prev) => ({ ...prev, targetHandlerId: h.id }));
                         setIsHandoverModalOpen(true);
                       }}
-                      className="flex-1 py-1.5 px-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg text-center transition"
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        background: '#2563EB',
+                        color: '#FFFFFF',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
                     >
                       + പണം നൽകുക
                     </button>
@@ -1024,7 +1663,17 @@ export default function FinanceManagementPage() {
                         }));
                         setIsExpenseModalOpen(true);
                       }}
-                      className="flex-1 py-1.5 px-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg text-center transition"
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        background: '#D97706',
+                        color: '#FFFFFF',
+                        fontSize: '0.76rem',
+                        fontWeight: 700,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                      }}
                     >
                       + ചിലവ് നൽകുക
                     </button>
@@ -1038,59 +1687,153 @@ export default function FinanceManagementPage() {
 
       {/* TAB 3: DISTRICT COMMITTEE */}
       {activeTab === 'district' && (
-        <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
-              <div className="flex items-center gap-3">
-                <span className="p-3 bg-blue-100 text-blue-800 rounded-xl">
-                  <Building2 className="w-6 h-6" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '14px',
+              padding: '24px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #F1F5F9',
+                paddingBottom: '16px',
+                marginBottom: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span
+                  style={{
+                    padding: '10px',
+                    background: '#DBEAFE',
+                    color: '#1D4ED8',
+                    borderRadius: '10px',
+                    display: 'flex',
+                  }}
+                >
+                  <Building2 size={24} />
                 </span>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">ജില്ലാ കമ്മിറ്റി ഫണ്ട് മാനേജ്‌മെന്റ്</h3>
-                  <p className="text-xs text-slate-500">
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
+                    ജില്ലാ കമ്മിറ്റി ഫണ്ട് മാനേജ്‌മെന്റ്
+                  </h3>
+                  <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
                     കളക്ഷൻ സമയത്ത് "District Committee" ആയി അടയാളപ്പെടുത്തിയ എല്ലാ തുകകളും ഇവിടെ ഓട്ടോമാറ്റിക്കായി ലഭിക്കുന്നു.
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">നിലവിലെ ബാക്കി</span>
-                <span className="text-2xl font-black text-blue-900">{formatINR(financeData.districtBalancePaise)}</span>
+              <div style={{ textAlign: 'right' }}>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: '#64748B',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    display: 'block',
+                  }}
+                >
+                  നിലവിലെ ബാക്കി
+                </span>
+                <span
+                  style={{
+                    fontSize: '1.6rem',
+                    fontWeight: 900,
+                    color: '#1E3A8A',
+                    fontFamily: 'var(--font-display)',
+                  }}
+                >
+                  {formatINR(financeData.districtBalancePaise)}
+                </span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-xs font-bold text-slate-500 uppercase">കളക്ഷനിൽ നിന്ന് ലഭിച്ചത്</span>
-                <div className="text-xl font-extrabold text-slate-900 mt-1">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '14px',
+                marginBottom: '22px',
+              }}
+            >
+              <div
+                style={{
+                  padding: '16px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>
+                  കളക്ഷനിൽ നിന്ന് ലഭിച്ചത്
+                </span>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>
                   {formatINR(financeData.districtCollectedPaise)}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">റസീതുകളിൽ 'district' എന്ന് അടയാളപ്പെടുത്തിയത്</p>
+                <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
+                  റസീതുകളിൽ 'district' എന്ന് അടയാളപ്പെടുത്തിയത്
+                </p>
               </div>
 
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-xs font-bold text-amber-700 uppercase">ജില്ലാ ഫണ്ടിൽ നിന്ന് ചിലവഴിച്ചത്</span>
-                <div className="text-xl font-extrabold text-amber-800 mt-1">
+              <div
+                style={{
+                  padding: '16px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>
+                  ജില്ലാ ഫണ്ടിൽ നിന്ന് ചിലവഴിച്ചത്
+                </span>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#B45309', marginTop: '4px' }}>
                   {formatINR(financeData.districtExpensesPaise)}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">ജില്ലാ കമ്മിറ്റി വഹിച്ച ചിലവുകൾ</p>
+                <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
+                  ജില്ലാ കമ്മിറ്റി വഹിച്ച ചിലവുകൾ
+                </p>
               </div>
 
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-xs font-bold text-rose-700 uppercase">ഭൂവുടമയ്ക്ക് നൽകിയത്</span>
-                <div className="text-xl font-extrabold text-rose-800 mt-1">
+              <div
+                style={{
+                  padding: '16px',
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '12px',
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>
+                  ഭൂവുടമയ്ക്ക് നൽകിയത്
+                </span>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#E11D48', marginTop: '4px' }}>
                   {formatINR(financeData.districtLandownerPaise)}
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">സ്ഥലത്തിന്റെ ഉടമയ്ക്ക് നേരിട്ട് നൽകിയത്</p>
+                <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
+                  സ്ഥലത്തിന്റെ ഉടമയ്ക്ക് നേരിട്ട് നൽകിയത്
+                </p>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 onClick={() => {
                   setExpenseForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
                   setIsExpenseModalOpen(true);
                 }}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs md:text-sm font-bold rounded-lg shadow-xs transition"
+                style={{
+                  padding: '9px 16px',
+                  background: '#D97706',
+                  color: '#FFFFFF',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 + ജില്ലാ ചിലവ് രേഖപ്പെടുത്തുക
               </button>
@@ -1099,7 +1842,15 @@ export default function FinanceManagementPage() {
                   setLandownerForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
                   setIsLandownerModalOpen(true);
                 }}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs md:text-sm font-bold rounded-lg shadow-xs transition"
+                style={{
+                  padding: '9px 16px',
+                  background: '#E11D48',
+                  color: '#FFFFFF',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 + ഭൂവുടമ പേയ്‌മെന്റ് നൽകുക
               </button>
@@ -1110,41 +1861,94 @@ export default function FinanceManagementPage() {
 
       {/* TAB 4: TRANSACTION & EXPENSE LEDGER */}
       {(activeTab === 'ledger' || activeTab === 'overview') && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+        <div
+          style={{
+            background: '#FFFFFF',
+            border: '1px solid #E2E8F0',
+            borderRadius: '14px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            overflow: 'hidden',
+          }}
+        >
           {/* Header & Filters */}
-          <div className="p-4 border-b border-slate-200 space-y-3">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #E2E8F0' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                marginBottom: '14px',
+              }}
+            >
               <div>
-                <h3 className="font-bold text-slate-900 text-base">എല്ലാ ഇടപാടുകളുടെയും കണക്ക് (Transaction Ledger)</h3>
-                <p className="text-xs text-slate-500">പണം നൽകൽ, ചിലവുകൾ, ഭൂവുടമ പേയ്‌മെന്റുകൾ എന്നിവയുടെ വിശദാംശങ്ങൾ</p>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                  എല്ലാ ഇടപാടുകളുടെയും കണക്ക് (Transaction Ledger)
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+                  പണം നൽകൽ, ചിലവുകൾ, ഭൂവുടമ പേയ്‌മെന്റുകൾ എന്നിവയുടെ വിശദാംശങ്ങൾ
+                </p>
               </div>
 
               <button
                 onClick={() => window.print()}
-                className="self-start md:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 12px',
+                  background: '#F1F5F9',
+                  color: '#334155',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
-                <Printer className="w-3.5 h-3.5" />
-                പ്രിന്റ് / PDF
+                <Printer size={15} />
+                <span>പ്രിന്റ് / PDF</span>
               </button>
             </div>
 
             {/* Filter controls */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+                <Search
+                  size={15}
+                  color="#94A3B8"
+                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }}
+                />
                 <input
                   type="text"
                   placeholder="തിരയുക (പേര്, കാരണം, റെഫറൻസ്)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600 focus:bg-white"
+                  style={{
+                    width: '100%',
+                    paddingLeft: '32px',
+                    paddingRight: '12px',
+                    paddingTop: '7px',
+                    paddingBottom: '7px',
+                    fontSize: '0.8rem',
+                    background: '#F8FAFC',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="py-1.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600"
+                style={{
+                  padding: '7px 12px',
+                  fontSize: '0.8rem',
+                  background: '#F8FAFC',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 <option value="all">എല്ലാ തരങ്ങളും (All Types)</option>
                 <option value="handover">പണം ഏൽപ്പിച്ചത് (Handovers)</option>
@@ -1155,7 +1959,14 @@ export default function FinanceManagementPage() {
               <select
                 value={filterAccount}
                 onChange={(e) => setFilterAccount(e.target.value)}
-                className="py-1.5 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-emerald-600"
+                style={{
+                  padding: '7px 12px',
+                  fontSize: '0.8rem',
+                  background: '#F8FAFC',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 <option value="all">എല്ലാ അക്കൗണ്ടുകളും (All Accounts)</option>
                 <option value="district">ജില്ലാ കമ്മിറ്റി</option>
@@ -1170,23 +1981,32 @@ export default function FinanceManagementPage() {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700">
-              <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4">തീയതി & നമ്പർ</th>
-                  <th className="py-3 px-4">ഇടപാട് തരം</th>
-                  <th className="py-3 px-4">വിവരണം / കാരണം</th>
-                  <th className="py-3 px-4">ഏത് അക്കൗണ്ടിൽ നിന്ന്</th>
-                  <th className="py-3 px-4">ആർക്ക് നൽകി</th>
-                  <th className="py-3 px-4 text-right">തുക</th>
-                  <th className="py-3 px-4 text-center">ആക്ഷൻ</th>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+              <thead>
+                <tr
+                  style={{
+                    background: '#F8FAFC',
+                    fontSize: '0.72rem',
+                    textTransform: 'uppercase',
+                    color: '#64748B',
+                    fontWeight: 800,
+                    borderBottom: '1px solid #E2E8F0',
+                  }}
+                >
+                  <th style={{ padding: '12px 16px' }}>തീയതി & നമ്പർ</th>
+                  <th style={{ padding: '12px 16px' }}>ഇടപാട് തരം</th>
+                  <th style={{ padding: '12px 16px' }}>വിവരണം / കാരണം</th>
+                  <th style={{ padding: '12px 16px' }}>ഏത് അക്കൗണ്ടിൽ നിന്ന്</th>
+                  <th style={{ padding: '12px 16px' }}>ആർക്ക് നൽകി</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>തുക</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'center' }}>റദ്ദാക്കുക</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
+              <tbody>
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8' }}>
                       ഇടപാടുകൾ ഒന്നും കണ്ടെത്തിയില്ല
                     </td>
                   </tr>
@@ -1196,66 +2016,112 @@ export default function FinanceManagementPage() {
                     return (
                       <tr
                         key={r.id}
-                        className={`hover:bg-slate-50/70 transition ${
-                          isCancelled ? 'opacity-40 line-through bg-rose-50/20' : ''
-                        }`}
+                        style={{
+                          borderBottom: '1px solid #F1F5F9',
+                          textDecoration: isCancelled ? 'line-through' : 'none',
+                          opacity: isCancelled ? 0.45 : 1,
+                          background: isCancelled ? '#FEF2F2' : 'transparent',
+                        }}
                       >
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="font-semibold text-slate-900">{r.date}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{r.recordNumber}</div>
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{r.date}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontFamily: 'monospace' }}>
+                            {r.recordNumber}
+                          </div>
                         </td>
 
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>
                           {r.type === 'handover' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                            <span
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                background: '#DBEAFE',
+                                color: '#1E40AF',
+                              }}
+                            >
                               🤝 പണം ഏൽപ്പിച്ചത്
                             </span>
                           )}
                           {r.type === 'expense' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                            <span
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                background: '#FEF3C7',
+                                color: '#B45309',
+                              }}
+                            >
                               🧾 ചിലവ് ({r.category})
                             </span>
                           )}
                           {r.type === 'landowner_payment' && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                            <span
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '4px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                background: '#FFE4E6',
+                                color: '#9F1239',
+                              }}
+                            >
                               🏛️ ഭൂവുടമ പേയ്‌മെന്റ്
                             </span>
                           )}
                           {isCancelled && (
-                            <span className="ml-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-rose-200 text-rose-900">
+                            <span
+                              style={{
+                                marginLeft: '6px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                background: '#FEE2E2',
+                                color: '#991B1B',
+                              }}
+                            >
                               റദ്ദാക്കി
                             </span>
                           )}
                         </td>
 
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900">{r.title}</div>
-                          {r.notes && <div className="text-[11px] text-slate-500 mt-0.5">{r.notes}</div>}
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{r.title}</div>
+                          {r.notes && <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '2px' }}>{r.notes}</div>}
                         </td>
 
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="font-semibold text-slate-800">{r.sourceHandlerName || '—'}</span>
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', fontWeight: 600, color: '#334155' }}>
+                          {r.sourceHandlerName || '—'}
                         </td>
 
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="text-slate-700">{r.targetHandlerName || r.recipient || '—'}</span>
+                        <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', color: '#334155' }}>
+                          {r.targetHandlerName || r.recipient || '—'}
                         </td>
 
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <td style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                           <span
-                            className={`font-black text-sm ${
-                              r.type === 'handover'
-                                ? 'text-blue-700'
-                                : r.type === 'expense'
-                                ? 'text-amber-700'
-                                : 'text-rose-700'
-                            }`}
+                            style={{
+                              fontSize: '0.92rem',
+                              fontWeight: 900,
+                              fontFamily: 'var(--font-display)',
+                              color:
+                                r.type === 'handover'
+                                  ? '#1D4ED8'
+                                  : r.type === 'expense'
+                                  ? '#B45309'
+                                  : '#BE123C',
+                            }}
                           >
                             {formatINR(r.amountPaise)}
                           </span>
                         </td>
 
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {!isCancelled ? (
                             <button
                               onClick={() => {
@@ -1263,12 +2129,18 @@ export default function FinanceManagementPage() {
                                 setCancelReason('');
                               }}
                               title="ഈ ഇടപാട് റദ്ദാക്കുക"
-                              className="p-1 hover:bg-rose-100 text-rose-600 rounded transition"
+                              style={{
+                                padding: '5px',
+                                color: '#DC2626',
+                                background: '#FEE2E2',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 size={14} />
                             </button>
                           ) : (
-                            <span className="text-[10px] text-rose-500 italic">റദ്ദാക്കി</span>
+                            <span style={{ fontSize: '0.72rem', color: '#DC2626', fontStyle: 'italic' }}>റദ്ദാക്കി</span>
                           )}
                         </td>
                       </tr>
@@ -1283,21 +2155,53 @@ export default function FinanceManagementPage() {
 
       {/* MODAL 1: ADD KUPPAM HANDLER (PERSON) */}
       {isHandlerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="font-bold text-slate-900 text-base">പുതിയ വ്യക്തിയെ/അക്കൗണ്ട് ചേർക്കുക</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '440px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #F1F5F9',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                പുതിയ വ്യക്തിയെ/അക്കൗണ്ട് ചേർക്കുക
+              </h3>
               <button
                 onClick={() => setIsHandlerModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 rounded-lg p-1"
+                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
               >
-                <X className="w-5 h-5" />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAddHandler} className="space-y-4">
+            <form onSubmit={handleAddHandler} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   വ്യക്തിയുടെ / അക്കൗണ്ടിന്റെ പേര് *
                 </label>
                 <input
@@ -1306,12 +2210,18 @@ export default function FinanceManagementPage() {
                   placeholder="ഉദാ: മൻസൂർക്ക, റഷീദ്, കുപ്പം ബാങ്ക്"
                   value={handlerForm.name}
                   onChange={(e) => setHandlerForm({ ...handlerForm, name: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   സ്ഥാനം / റോൾ (Role)
                 </label>
                 <input
@@ -1319,12 +2229,18 @@ export default function FinanceManagementPage() {
                   placeholder="ഉദാ: ഫൈനാൻസ് കൺവീനർ, ട്രഷറർ"
                   value={handlerForm.role}
                   onChange={(e) => setHandlerForm({ ...handlerForm, role: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   ഫോൺ നമ്പർ (Phone)
                 </label>
                 <input
@@ -1332,12 +2248,18 @@ export default function FinanceManagementPage() {
                   placeholder="10-digit mobile"
                   value={handlerForm.phone}
                   onChange={(e) => setHandlerForm({ ...handlerForm, phone: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   കുറിപ്പ് (Notes)
                 </label>
                 <textarea
@@ -1345,22 +2267,47 @@ export default function FinanceManagementPage() {
                   placeholder="അധിക വിവരങ്ങൾ..."
                   value={handlerForm.notes}
                   onChange={(e) => setHandlerForm({ ...handlerForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setIsHandlerModalOpen(false)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   റദ്ദാക്കുക
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg shadow-sm disabled:opacity-50"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#059669',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1,
+                  }}
                 >
                   {isSubmitting ? 'ചേർക്കുന്നു...' : 'സേവ് ചെയ്യുക'}
                 </button>
@@ -1372,28 +2319,67 @@ export default function FinanceManagementPage() {
 
       {/* MODAL 2: HANDOVER MONEY TO PERSON */}
       {isHandoverModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="font-bold text-slate-900 text-base">കുപ്പം ഫണ്ടിൽ നിന്ന് പണം ഏൽപ്പിക്കുക</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '440px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #F1F5F9',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                കുപ്പം ഫണ്ടിൽ നിന്ന് പണം ഏൽപ്പിക്കുക
+              </h3>
               <button
                 onClick={() => setIsHandoverModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 rounded-lg p-1"
+                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
               >
-                <X className="w-5 h-5" />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleRecordHandover} className="space-y-4">
+            <form onSubmit={handleRecordHandover} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   ആർക്കാണ് പണം നൽകുന്നത്? *
                 </label>
                 <select
                   required
                   value={handoverForm.targetHandlerId}
                   onChange={(e) => setHandoverForm({ ...handoverForm, targetHandlerId: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   <option value="">വ്യക്തിയെ തിരഞ്ഞെടുക്കുക...</option>
                   {handlers.map((h) => (
@@ -1403,14 +2389,14 @@ export default function FinanceManagementPage() {
                   ))}
                 </select>
                 {handlers.length === 0 && (
-                  <p className="text-xs text-rose-600 mt-1">
+                  <p style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '4px', margin: 0 }}>
                     വ്യക്തികളെ ചേർത്തിട്ടില്ല. ദയവായി ആദ്യം 'വ്യക്തിയെ ചേർക്കുക' ക്ലിക്ക് ചെയ്യുക.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   ഏൽപ്പിച്ച തുക (Amount in ₹) *
                 </label>
                 <input
@@ -1420,44 +2406,86 @@ export default function FinanceManagementPage() {
                   placeholder="ഉദാ: 50000"
                   value={handoverForm.amountRupees}
                   onChange={(e) => setHandoverForm({ ...handoverForm, amountRupees: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-bold"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">തീയതി (Date) *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  തീയതി (Date) *
+                </label>
                 <input
                   type="date"
                   required
                   value={handoverForm.date}
                   onChange={(e) => setHandoverForm({ ...handoverForm, date: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">കുറിപ്പ് (Notes)</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  കുറിപ്പ് (Notes)
+                </label>
                 <textarea
                   rows={2}
                   placeholder="എന്തിനാണ് പണം ഏൽപ്പിച്ചത്..."
                   value={handoverForm.notes}
                   onChange={(e) => setHandoverForm({ ...handoverForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setIsHandoverModalOpen(false)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   റദ്ദാക്കുക
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || handlers.length === 0}
-                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg shadow-sm disabled:opacity-50"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#2563EB',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    opacity: isSubmitting || handlers.length === 0 ? 0.6 : 1,
+                  }}
                 >
                   {isSubmitting ? 'രേഖപ്പെടുത്തുന്നു...' : 'ഏൽപ്പിച്ചതായി രേഖപ്പെടുത്തുക'}
                 </button>
@@ -1469,46 +2497,99 @@ export default function FinanceManagementPage() {
 
       {/* MODAL 3: ADD EXPENSE */}
       {isExpenseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="font-bold text-slate-900 text-base">ചിലവ് രേഖപ്പെടുത്തുക (Add Expense)</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '460px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #F1F5F9',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                ചിലവ് രേഖപ്പെടുത്തുക (Add Expense)
+              </h3>
               <button
                 onClick={() => setIsExpenseModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 rounded-lg p-1"
+                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
               >
-                <X className="w-5 h-5" />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleRecordExpense} className="space-y-4">
+            <form onSubmit={handleRecordExpense} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '6px' }}>
                   ഏത് അക്കൗണ്ടിൽ നിന്നാണ് നൽകിയത്? (Paid From) *
                 </label>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-slate-50">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      padding: '10px',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      background: expenseForm.sourceType === 'kuppam_handler' ? '#FEF3C7' : '#FFFFFF',
+                      cursor: 'pointer',
+                    }}
+                  >
                     <input
                       type="radio"
                       name="expenseSource"
                       value="kuppam_handler"
                       checked={expenseForm.sourceType === 'kuppam_handler'}
                       onChange={() => setExpenseForm({ ...expenseForm, sourceType: 'kuppam_handler' })}
-                      className="text-amber-600"
+                      style={{ marginTop: '2px' }}
                     />
-                    <div className="text-xs">
-                      <span className="font-bold text-slate-900">👤 കുപ്പം കമ്മിറ്റി - വ്യക്തിയുടെ പക്കൽ നിന്ന്</span>
-                      <p className="text-[10px] text-slate-500">മൻസൂർക്ക അല്ലെങ്കിൽ മറ്റ് അംഗങ്ങളുടെ കയ്യിൽ നിന്ന്</p>
+                    <div style={{ fontSize: '0.8rem' }}>
+                      <span style={{ fontWeight: 800, color: '#0F172A' }}>👤 കുപ്പം കമ്മിറ്റി - വ്യക്തിയുടെ പക്കൽ നിന്ന്</span>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748B' }}>
+                        മൻസൂർക്ക അല്ലെങ്കിൽ മറ്റ് അംഗങ്ങളുടെ കയ്യിൽ നിന്ന്
+                      </p>
                     </div>
                   </label>
 
                   {expenseForm.sourceType === 'kuppam_handler' && (
-                    <div className="pl-6 pt-1">
+                    <div style={{ paddingLeft: '24px' }}>
                       <select
                         required
                         value={expenseForm.sourceHandlerId}
                         onChange={(e) => setExpenseForm({ ...expenseForm, sourceHandlerId: e.target.value })}
-                        className="w-full px-3 py-1.5 text-xs border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 bg-amber-50/40"
+                        style={{
+                          width: '100%',
+                          padding: '7px 10px',
+                          fontSize: '0.82rem',
+                          border: '1px solid #F59E0B',
+                          borderRadius: '8px',
+                          background: '#FFFBEB',
+                          cursor: 'pointer',
+                        }}
                       >
                         <option value="">വ്യക്തിയെ തിരഞ്ഞെടുക്കുക...</option>
                         {handlers.map((h) => {
@@ -1523,42 +2604,66 @@ export default function FinanceManagementPage() {
                     </div>
                   )}
 
-                  <label className="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-slate-50">
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      padding: '10px',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      background: expenseForm.sourceType === 'district' ? '#DBEAFE' : '#FFFFFF',
+                      cursor: 'pointer',
+                    }}
+                  >
                     <input
                       type="radio"
                       name="expenseSource"
                       value="district"
                       checked={expenseForm.sourceType === 'district'}
                       onChange={() => setExpenseForm({ ...expenseForm, sourceType: 'district' })}
-                      className="text-amber-600"
+                      style={{ marginTop: '2px' }}
                     />
-                    <div className="text-xs">
-                      <span className="font-bold text-slate-900">🏛️ ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്</span>
-                      <p className="text-[10px] text-slate-500">
+                    <div style={{ fontSize: '0.8rem' }}>
+                      <span style={{ fontWeight: 800, color: '#0F172A' }}>🏛️ ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്</span>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748B' }}>
                         ജില്ലാ ഫണ്ടിൽ നിന്ന് (ലഭ്യമായത്: {formatINR(financeData.districtBalancePaise)})
                       </p>
                     </div>
                   </label>
 
-                  <label className="flex items-center gap-2 p-2.5 border rounded-lg cursor-pointer hover:bg-slate-50">
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '8px',
+                      padding: '10px',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      background: expenseForm.sourceType === 'kuppam_main' ? '#F1F5F9' : '#FFFFFF',
+                      cursor: 'pointer',
+                    }}
+                  >
                     <input
                       type="radio"
                       name="expenseSource"
                       value="kuppam_main"
                       checked={expenseForm.sourceType === 'kuppam_main'}
                       onChange={() => setExpenseForm({ ...expenseForm, sourceType: 'kuppam_main' })}
-                      className="text-amber-600"
+                      style={{ marginTop: '2px' }}
                     />
-                    <div className="text-xs">
-                      <span className="font-bold text-slate-900">🏢 കുപ്പം മെയിൻ ക്യാഷ്</span>
-                      <p className="text-[10px] text-slate-500">നേരിട്ട് കുപ്പം കൗണ്ടർ ഫണ്ടിൽ നിന്ന്</p>
+                    <div style={{ fontSize: '0.8rem' }}>
+                      <span style={{ fontWeight: 800, color: '#0F172A' }}>🏢 കുപ്പം മെയിൻ ക്യാഷ്</span>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748B' }}>
+                        നേരിട്ട് കുപ്പം കൗണ്ടർ ഫണ്ടിൽ നിന്ന്
+                      </p>
                     </div>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   ചിലവിന്റെ കാരണം (Purpose / Title) *
                 </label>
                 <input
@@ -1567,13 +2672,19 @@ export default function FinanceManagementPage() {
                   placeholder="ഉദാ: പോസ്റ്റർ പ്രിന്റിംഗ്, ഡോക്യുമെന്റേഷൻ ചിലവ്"
                   value={expenseForm.title}
                   onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                     തുക (Amount in ₹) *
                   </label>
                   <input
@@ -1583,16 +2694,32 @@ export default function FinanceManagementPage() {
                     placeholder="10000"
                     value={expenseForm.amountRupees}
                     onChange={(e) => setExpenseForm({ ...expenseForm, amountRupees: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 font-bold"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                    }}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">വിഭാഗം (Category)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    വിഭാഗം (Category)
+                  </label>
                   <select
                     value={expenseForm.category}
                     onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      fontSize: '0.88rem',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
                   >
                     <option value="printing">പ്രിന്റിംഗ് (Printing)</option>
                     <option value="documentation">ഡോക്യുമെന്റേഷൻ (Documentation)</option>
@@ -1603,52 +2730,95 @@ export default function FinanceManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">തീയതി (Date) *</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    തീയതി (Date) *
+                  </label>
                   <input
                     type="date"
                     required
                     value={expenseForm.date}
                     onChange={(e) => setExpenseForm({ ...expenseForm, date: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      fontSize: '0.88rem',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                    }}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">ആർക്ക് നൽകി (Recipient)</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                    ആർക്ക് നൽകി (Recipient)
+                  </label>
                   <input
                     type="text"
                     placeholder="സ്ഥാപനം / വ്യക്തി"
                     value={expenseForm.recipient}
                     onChange={(e) => setExpenseForm({ ...expenseForm, recipient: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      fontSize: '0.88rem',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                    }}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">കുറിപ്പ് (Notes)</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  കുറിപ്പ് (Notes)
+                </label>
                 <textarea
                   rows={2}
                   placeholder="ബിൽ നമ്പർ അല്ലെങ്കിൽ കൂടുതൽ വിവരങ്ങൾ..."
                   value={expenseForm.notes}
                   onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setIsExpenseModalOpen(false)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   റദ്ദാക്കുക
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg shadow-sm disabled:opacity-50"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#D97706',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1,
+                  }}
                 >
                   {isSubmitting ? 'രേഖപ്പെടുത്തുന്നു...' : 'ചിലവ് സേവ് ചെയ്യുക'}
                 </button>
@@ -1660,21 +2830,53 @@ export default function FinanceManagementPage() {
 
       {/* MODAL 4: RECORD LANDOWNER PAYMENT */}
       {isLandownerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <h3 className="font-bold text-slate-900 text-base">ഭൂവുടമയ്ക്ക് നൽകിയ പേയ്‌മെന്റ്</h3>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '440px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #F1F5F9',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                ഭൂവുടമയ്ക്ക് നൽകിയ പേയ്‌മെന്റ്
+              </h3>
               <button
                 onClick={() => setIsLandownerModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 rounded-lg p-1"
+                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
               >
-                <X className="w-5 h-5" />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleRecordLandowner} className="space-y-4">
+            <form onSubmit={handleRecordLandowner} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   ഏത് അക്കൗണ്ടിൽ നിന്നാണ് നൽകിയത്? *
                 </label>
                 <select
@@ -1685,7 +2887,14 @@ export default function FinanceManagementPage() {
                       sourceType: e.target.value as 'district' | 'kuppam_handler' | 'kuppam_main',
                     })
                   }
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   <option value="district">🏛️ ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്</option>
                   <option value="kuppam_handler">👤 കുപ്പം കമ്മിറ്റി - വ്യക്തിയുടെ കൈവശമുള്ളത്</option>
@@ -1695,14 +2904,21 @@ export default function FinanceManagementPage() {
 
               {landownerForm.sourceType === 'kuppam_handler' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                     ഏത് വ്യക്തിയാണ് നൽകിയത്? *
                   </label>
                   <select
                     required
                     value={landownerForm.sourceHandlerId}
                     onChange={(e) => setLandownerForm({ ...landownerForm, sourceHandlerId: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      fontSize: '0.88rem',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
                   >
                     <option value="">വ്യക്തിയെ തിരഞ്ഞെടുക്കുക...</option>
                     {handlers.map((h) => (
@@ -1715,7 +2931,7 @@ export default function FinanceManagementPage() {
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                   നൽകിയ തുക (Amount in ₹) *
                 </label>
                 <input
@@ -1725,44 +2941,86 @@ export default function FinanceManagementPage() {
                   placeholder="തുക നൽകുക"
                   value={landownerForm.amountRupees}
                   onChange={(e) => setLandownerForm({ ...landownerForm, amountRupees: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 font-bold"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">തീയതി (Date) *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  തീയതി (Date) *
+                </label>
                 <input
                   type="date"
                   required
                   value={landownerForm.date}
                   onChange={(e) => setLandownerForm({ ...landownerForm, date: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">കുറിപ്പ് (Notes)</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                  കുറിപ്പ് (Notes)
+                </label>
                 <textarea
                   rows={2}
                   placeholder="റെസീപ്റ്റ് നമ്പർ അല്ലെങ്കിൽ കരാർ വിവരങ്ങൾ..."
                   value={landownerForm.notes}
                   onChange={(e) => setLandownerForm({ ...landownerForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '0.88rem',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                  }}
                 />
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '8px' }}>
                 <button
                   type="button"
                   onClick={() => setIsLandownerModalOpen(false)}
-                  className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-lg"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
                 >
                   റദ്ദാക്കുക
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-lg shadow-sm disabled:opacity-50"
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#E11D48',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1,
+                  }}
                 >
                   {isSubmitting ? 'രേഖപ്പെടുത്തുന്നു...' : 'സേവ് ചെയ്യുക'}
                 </button>
@@ -1774,20 +3032,51 @@ export default function FinanceManagementPage() {
 
       {/* MODAL 5: CANCEL RECORD CONFIRMATION */}
       {cancellingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="font-bold text-slate-900 text-base text-rose-700 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-rose-600" />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '440px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                fontSize: '1.05rem',
+                fontWeight: 800,
+                color: '#DC2626',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <AlertCircle size={20} color="#DC2626" />
               ഇടപാട് റദ്ദാക്കുക (Cancel Transaction)
             </h3>
-            <p className="text-xs text-slate-600 mt-2">
+            <p style={{ fontSize: '0.82rem', color: '#475569', marginTop: '8px', marginBottom: '16px' }}>
               <strong>{cancellingRecord.recordNumber}</strong> - {cancellingRecord.title} (
               {formatINR(cancellingRecord.amountPaise)}) റദ്ദാക്കാൻ ആഗ്രഹിക്കുന്നുണ്ടോ? ഇത് റദ്ദാക്കിയാൽ ബാലൻസ്
               പഴയപടിയാകും.
             </p>
 
-            <div className="mt-4">
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
                 റദ്ദാക്കാനുള്ള കാരണം (Reason) *
               </label>
               <input
@@ -1796,15 +3085,30 @@ export default function FinanceManagementPage() {
                 placeholder="ഉദാ: തെറ്റായി രേഖപ്പെടുത്തിയ തുക..."
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
-                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  fontSize: '0.84rem',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '8px',
+                }}
               />
             </div>
 
-            <div className="flex gap-2 mt-5">
+            <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
               <button
                 type="button"
                 onClick={() => setCancellingRecord(null)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg"
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#F1F5F9',
+                  color: '#334155',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
               >
                 വേണ്ട
               </button>
@@ -1812,7 +3116,17 @@ export default function FinanceManagementPage() {
                 type="button"
                 onClick={handleConfirmCancelRecord}
                 disabled={isSubmitting || !cancelReason.trim()}
-                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg shadow-sm disabled:opacity-50"
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  fontWeight: 800,
+                  fontSize: '0.84rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  opacity: isSubmitting || !cancelReason.trim() ? 0.6 : 1,
+                }}
               >
                 {isSubmitting ? 'റദ്ദാക്കുന്നു...' : 'റദ്ദാക്കുക'}
               </button>
