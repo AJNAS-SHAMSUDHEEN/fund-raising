@@ -461,8 +461,8 @@ export default function AdminReportsPage() {
       }
     });
 
-    // Reconciled Remaining Balance for pledges:
-    const remainingBalancePaise = Math.max(0, totalOfferedPaise - totalCollectedForOffersPaise);
+    // Reconciled Remaining Balance: Total Offered - Total Collected
+    const remainingBalancePaise = Math.max(0, totalOfferedPaise - totalCollectedPaise);
     const collectionRate =
       totalOfferedPaise > 0 ? Math.min(100, (totalCollectedPaise / totalOfferedPaise) * 100) : 0;
 
