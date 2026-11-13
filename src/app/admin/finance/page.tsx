@@ -31,7 +31,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Search,
-  Printer,
   Download,
   TrendingDown,
   X,
@@ -53,11 +52,11 @@ export default function FinanceManagementPage() {
   const [cashCollections, setCashCollections] = useState<any[]>([]);
   const [isCashLoading, setIsCashLoading] = useState(true);
 
-  // 2. Kuppam Handlers & Finance Records
+  // 2. Kuppam Custodians & Finance Records
   const [handlers, setHandlers] = useState<KuppamHandler[]>([]);
   const [records, setRecords] = useState<FinanceRecord[]>([]);
 
-  // Alerts & Modals
+  // Alerts & Notifications
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -70,7 +69,7 @@ export default function FinanceManagementPage() {
   const [cancelReason, setCancelReason] = useState('');
 
   // Form states
-  const [handlerForm, setHandlerForm] = useState({ name: '', phone: '', role: 'കമ്മിറ്റി അംഗം', notes: '' });
+  const [handlerForm, setHandlerForm] = useState({ name: '', phone: '', role: 'Committee Member', notes: '' });
   const [handoverForm, setHandoverForm] = useState({
     targetHandlerId: '',
     amountRupees: '',
@@ -124,7 +123,7 @@ export default function FinanceManagementPage() {
     return () => unsub();
   }, []);
 
-  // Load Kuppam Handlers & Records
+  // Load Kuppam Custodians & Records
   useEffect(() => {
     const unsubHandlers = subscribeToKuppamHandlers((list) => {
       setHandlers(list);
@@ -246,7 +245,7 @@ export default function FinanceManagementPage() {
     };
   }, [cashCollections, records, handlers]);
 
-  // Handle Add Handler
+  // Handle Add Custodian
   const handleAddHandler = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!handlerForm.name.trim()) return;
@@ -254,12 +253,12 @@ export default function FinanceManagementPage() {
     try {
       setIsSubmitting(true);
       await createKuppamHandler(handlerForm);
-      setSuccessMessage(`വ്യക്തിയെ വിജയകരമായി ചേർത്തു: ${handlerForm.name}`);
-      setHandlerForm({ name: '', phone: '', role: 'കമ്മിറ്റി അംഗം', notes: '' });
+      setSuccessMessage(`Custodian added successfully: ${handlerForm.name}`);
+      setHandlerForm({ name: '', phone: '', role: 'Committee Member', notes: '' });
       setIsHandlerModalOpen(false);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'വ്യക്തിയെ ചേർക്കാൻ സാധിച്ചില്ല');
+      setErrorMessage(err.message || 'Failed to add custodian.');
     } finally {
       setIsSubmitting(false);
     }
@@ -270,11 +269,11 @@ export default function FinanceManagementPage() {
     e.preventDefault();
     const numAmt = parseFloat(handoverForm.amountRupees);
     if (isNaN(numAmt) || numAmt <= 0) {
-      setErrorMessage('സാധുവായ തുക നൽകുക');
+      setErrorMessage('Please enter a valid amount.');
       return;
     }
     if (!handoverForm.targetHandlerId) {
-      setErrorMessage('പണം ഏൽപ്പിക്കേണ്ട വ്യക്തിയെ തിരഞ്ഞെടുക്കുക');
+      setErrorMessage('Please select a recipient custodian.');
       return;
     }
 
@@ -285,13 +284,13 @@ export default function FinanceManagementPage() {
       await recordMoneyHandover({
         amountPaise: Math.round(numAmt * 100),
         targetHandlerId: handoverForm.targetHandlerId,
-        targetHandlerName: targetHandler?.name || 'അംഗം',
+        targetHandlerName: targetHandler?.name || 'Custodian',
         date: handoverForm.date,
         notes: handoverForm.notes,
         createdByUid: adminUser?.uid || 'admin',
         createdByName: adminUser?.name || 'Administrator',
       });
-      setSuccessMessage(`₹${numAmt.toLocaleString('en-IN')} വിജയകരമായി ${targetHandler?.name}-ക്ക് ഏൽപ്പിച്ചു`);
+      setSuccessMessage(`₹${numAmt.toLocaleString('en-IN')} handed over to ${targetHandler?.name}`);
       setHandoverForm({
         targetHandlerId: '',
         amountRupees: '',
@@ -301,7 +300,7 @@ export default function FinanceManagementPage() {
       setIsHandoverModalOpen(false);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'പണം ഏൽപ്പിക്കുന്നത് രേഖപ്പെടുത്താൻ കഴിഞ്ഞില്ല');
+      setErrorMessage(err.message || 'Failed to record handover.');
     } finally {
       setIsSubmitting(false);
     }
@@ -312,30 +311,30 @@ export default function FinanceManagementPage() {
     e.preventDefault();
     const numAmt = parseFloat(expenseForm.amountRupees);
     if (isNaN(numAmt) || numAmt <= 0) {
-      setErrorMessage('സാധുവായ തുക നൽകുക');
+      setErrorMessage('Please enter a valid amount.');
       return;
     }
     if (!expenseForm.title.trim()) {
-      setErrorMessage('ചെലവിന്റെ കാരണം നൽകുക');
+      setErrorMessage('Please enter expense purpose / title.');
       return;
     }
 
     let sourceType: FinanceSourceType = 'kuppam_main';
     let sourceHandlerId = '';
-    let sourceHandlerName = 'കുപ്പം മെയിൻ ഫണ്ട്';
+    let sourceHandlerName = 'Kuppam Main Treasury';
 
     if (expenseForm.sourceType === 'district') {
       sourceType = 'district';
-      sourceHandlerName = 'ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്';
+      sourceHandlerName = 'District Committee Account';
     } else if (expenseForm.sourceType === 'kuppam_handler') {
       if (!expenseForm.sourceHandlerId) {
-        setErrorMessage('ഏത് വ്യക്തിയുടെ പക്കൽ നിന്നാണ് പണം നൽകിയതെന്ന് തിരഞ്ഞെടുക്കുക');
+        setErrorMessage('Please select the paying custodian.');
         return;
       }
       sourceType = 'handler';
       sourceHandlerId = expenseForm.sourceHandlerId;
       const h = handlers.find((x) => x.id === sourceHandlerId);
-      sourceHandlerName = h?.name || 'കമ്മിറ്റി അംഗം';
+      sourceHandlerName = h?.name || 'Custodian';
     }
 
     try {
@@ -353,7 +352,7 @@ export default function FinanceManagementPage() {
         createdByUid: adminUser?.uid || 'admin',
         createdByName: adminUser?.name || 'Administrator',
       });
-      setSuccessMessage(`₹${numAmt.toLocaleString('en-IN')} ചിലവ് വിജയകരമായി രേഖപ്പെടുത്തി (${sourceHandlerName})`);
+      setSuccessMessage(`Expense of ₹${numAmt.toLocaleString('en-IN')} recorded successfully (${sourceHandlerName})`);
       setExpenseForm({
         title: '',
         amountRupees: '',
@@ -367,7 +366,7 @@ export default function FinanceManagementPage() {
       setIsExpenseModalOpen(false);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'ചെലവ് രേഖപ്പെടുത്താൻ കഴിഞ്ഞില്ല');
+      setErrorMessage(err.message || 'Failed to record expense.');
     } finally {
       setIsSubmitting(false);
     }
@@ -378,26 +377,26 @@ export default function FinanceManagementPage() {
     e.preventDefault();
     const numAmt = parseFloat(landownerForm.amountRupees);
     if (isNaN(numAmt) || numAmt <= 0) {
-      setErrorMessage('സാധുവായ തുക നൽകുക');
+      setErrorMessage('Please enter a valid amount.');
       return;
     }
 
     let sourceType: FinanceSourceType = 'district';
     let sourceHandlerId = '';
-    let sourceHandlerName = 'ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്';
+    let sourceHandlerName = 'District Committee Account';
 
     if (landownerForm.sourceType === 'kuppam_handler') {
       if (!landownerForm.sourceHandlerId) {
-        setErrorMessage('ഏത് വ്യക്തിയാണ് നൽകിയതെന്ന് തിരഞ്ഞെടുക്കുക');
+        setErrorMessage('Please select the custodian.');
         return;
       }
       sourceType = 'handler';
       sourceHandlerId = landownerForm.sourceHandlerId;
       const h = handlers.find((x) => x.id === sourceHandlerId);
-      sourceHandlerName = h?.name || 'കമ്മിറ്റി അംഗം';
+      sourceHandlerName = h?.name || 'Custodian';
     } else if (landownerForm.sourceType === 'kuppam_main') {
       sourceType = 'kuppam_main';
-      sourceHandlerName = 'കുപ്പം മെയിൻ ഫണ്ട്';
+      sourceHandlerName = 'Kuppam Main Treasury';
     }
 
     try {
@@ -412,7 +411,7 @@ export default function FinanceManagementPage() {
         createdByUid: adminUser?.uid || 'admin',
         createdByName: adminUser?.name || 'Administrator',
       });
-      setSuccessMessage(`₹${numAmt.toLocaleString('en-IN')} ഭൂവുടമയ്ക്കുള്ള പേയ്‌മെന്റ് വിജയകരമായി രേഖപ്പെടുത്തി`);
+      setSuccessMessage(`Landowner payment of ₹${numAmt.toLocaleString('en-IN')} recorded successfully`);
       setLandownerForm({
         amountRupees: '',
         sourceType: 'district',
@@ -423,7 +422,7 @@ export default function FinanceManagementPage() {
       setIsLandownerModalOpen(false);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'ഭൂവുടമ പേയ്‌മെന്റ് രേഖപ്പെടുത്താൻ കഴിഞ്ഞില്ല');
+      setErrorMessage(err.message || 'Failed to record landowner payment.');
     } finally {
       setIsSubmitting(false);
     }
@@ -438,12 +437,12 @@ export default function FinanceManagementPage() {
         uid: adminUser?.uid || 'admin',
         name: adminUser?.name || 'Administrator',
       });
-      setSuccessMessage(`ഇടപാട് ${cancellingRecord.recordNumber} വിജയകരമായി റദ്ദാക്കി`);
+      setSuccessMessage(`Transaction ${cancellingRecord.recordNumber} successfully cancelled`);
       setCancellingRecord(null);
       setCancelReason('');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setErrorMessage(err.message || 'ഇടപാട് റദ്ദാക്കാൻ കഴിഞ്ഞില്ല');
+      setErrorMessage(err.message || 'Failed to cancel transaction.');
     } finally {
       setIsSubmitting(false);
     }
@@ -540,11 +539,11 @@ export default function FinanceManagementPage() {
                 margin: 0,
               }}
             >
-              Finance Management (ധനകാര്യ മാനേജ്‌മെന്റ്)
+              Finance Management
             </h1>
           </div>
           <p style={{ fontSize: '0.86rem', color: '#64748B', marginTop: '6px', margin: 0 }}>
-            കളക്ഷൻ തുകകൾ തത്സമയം നിരീക്ഷിക്കുക, ജില്ലാ & കുപ്പം കമ്മിറ്റി ഫണ്ടുകൾ, വ്യക്തികളുടെ കൈവശമുള്ള തുക, ചിലവുകൾ എന്നിവ കൈകാര്യം ചെയ്യുക.
+            Real-time custody tracking, committee fund distribution, project expenses, and audit ledger.
           </p>
         </div>
 
@@ -567,7 +566,7 @@ export default function FinanceManagementPage() {
             }}
           >
             <ArrowRightLeft size={16} />
-            <span>പണം ഏൽപ്പിക്കുക</span>
+            <span>Handover Funds</span>
           </button>
 
           <button
@@ -587,7 +586,7 @@ export default function FinanceManagementPage() {
             }}
           >
             <Receipt size={16} />
-            <span>ചിലവ് രേഖപ്പെടുത്തുക</span>
+            <span>Record Expense</span>
           </button>
 
           <button
@@ -607,7 +606,7 @@ export default function FinanceManagementPage() {
             }}
           >
             <Building2 size={16} />
-            <span>ഭൂവുടമ പേയ്‌മെന്റ്</span>
+            <span>Landowner Payment</span>
           </button>
 
           <button
@@ -627,7 +626,7 @@ export default function FinanceManagementPage() {
             }}
           >
             <Plus size={16} />
-            <span>വ്യക്തിയെ ചേർക്കുക</span>
+            <span>Add Custodian</span>
           </button>
 
           <button
@@ -647,7 +646,7 @@ export default function FinanceManagementPage() {
             }}
           >
             <Download size={16} />
-            <span>റിപ്പോർട്ട് ഡൗൺലോഡ് (PDF)</span>
+            <span>Download Report (PDF)</span>
           </button>
         </div>
       </div>
@@ -727,7 +726,7 @@ export default function FinanceManagementPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>
-              ആകെ പിരിവ്
+              Total Cash Collected
             </span>
             <span
               style={{
@@ -739,7 +738,7 @@ export default function FinanceManagementPage() {
                 borderRadius: '4px',
               }}
             >
-              Live Auto
+              Live Synced
             </span>
           </div>
           <div
@@ -754,7 +753,7 @@ export default function FinanceManagementPage() {
             {formatINR(financeData.totalCashPaise)}
           </div>
           <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
-            റസീതുകളിൽ നിന്ന് ഓട്ടോമാറ്റിക്കായി
+            Auto aggregated from receipts
           </p>
         </div>
 
@@ -771,7 +770,7 @@ export default function FinanceManagementPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#1E40AF', textTransform: 'uppercase' }}>
-              ജില്ലാ ഫണ്ട്
+              District Fund Balance
             </span>
             <Building2 size={16} color="#2563EB" />
           </div>
@@ -787,7 +786,7 @@ export default function FinanceManagementPage() {
             {formatINR(financeData.districtBalancePaise)}
           </div>
           <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
-            ലഭിച്ചത്: {formatINR(financeData.districtCollectedPaise)}
+            Collections: {formatINR(financeData.districtCollectedPaise)}
           </p>
         </div>
 
@@ -804,7 +803,7 @@ export default function FinanceManagementPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#0F766E', textTransform: 'uppercase' }}>
-              കുപ്പം ഫണ്ട്
+              Kuppam Fund Total
             </span>
             <Landmark size={16} color="#0D9488" />
           </div>
@@ -820,7 +819,7 @@ export default function FinanceManagementPage() {
             {formatINR(financeData.kuppamTotalAvailablePaise)}
           </div>
           <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
-            ലഭിച്ചത്: {formatINR(financeData.kuppamCollectedPaise)}
+            Collections: {formatINR(financeData.kuppamCollectedPaise)}
           </p>
         </div>
 
@@ -837,7 +836,7 @@ export default function FinanceManagementPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3730A3', textTransform: 'uppercase' }}>
-              ആളുകളുടെ കയ്യിൽ
+              Held by Custodians
             </span>
             <Users size={16} color="#4F46E5" />
           </div>
@@ -853,7 +852,7 @@ export default function FinanceManagementPage() {
             {formatINR(financeData.totalBalanceHeldByHandlersPaise)}
           </div>
           <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
-            {handlers.length} വ്യക്തികൾ / അക്കൗണ്ട്
+            {handlers.length} Active Custodians
           </p>
         </div>
 
@@ -870,7 +869,7 @@ export default function FinanceManagementPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>
-              ഭൂവുടമയ്ക്ക്
+              Paid to Landowner
             </span>
             <TrendingDown size={16} color="#E11D48" />
           </div>
@@ -886,7 +885,7 @@ export default function FinanceManagementPage() {
             {formatINR(financeData.totalLandownerPaidPaise)}
           </div>
           <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
-            ഭൂമി ഏറ്റെടുക്കലിന് നൽകിയത്
+            Land acquisition disbursements
           </p>
         </div>
 
@@ -903,7 +902,7 @@ export default function FinanceManagementPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>
-              ആകെ ചിലവുകൾ
+              Project Expenses
             </span>
             <Receipt size={16} color="#D97706" />
           </div>
@@ -919,7 +918,7 @@ export default function FinanceManagementPage() {
             {formatINR(financeData.totalExpensesPaise)}
           </div>
           <p style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', margin: 0 }}>
-            പ്രിന്റിംഗ് & മറ്റു ചിലവുകൾ
+            Printing, travel & misc costs
           </p>
         </div>
       </div>
@@ -948,7 +947,7 @@ export default function FinanceManagementPage() {
             marginBottom: '-2px',
           }}
         >
-          🏛️ പ്രധാന അവലോകനം (Overview)
+          Overview
         </button>
 
         <button
@@ -965,7 +964,7 @@ export default function FinanceManagementPage() {
             marginBottom: '-2px',
           }}
         >
-          👥 കുപ്പം കമ്മിറ്റിയും ആളുകളും ({handlers.length})
+          Kuppam Custodians ({handlers.length})
         </button>
 
         <button
@@ -982,7 +981,7 @@ export default function FinanceManagementPage() {
             marginBottom: '-2px',
           }}
         >
-          🏛️ ജില്ലാ കമ്മിറ്റി ഫണ്ട്
+          District Committee Fund
         </button>
 
         <button
@@ -999,7 +998,7 @@ export default function FinanceManagementPage() {
             marginBottom: '-2px',
           }}
         >
-          📜 എല്ലാ ഇടപാടുകളുടെയും കണക്ക് ({records.length})
+          Transaction Ledger ({records.length})
         </button>
       </div>
 
@@ -1042,10 +1041,10 @@ export default function FinanceManagementPage() {
                   </span>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
-                      ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്
+                      District Committee Account
                     </h3>
                     <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>
-                      ജില്ലാ കമ്മിറ്റിയുടെ ഫണ്ട് നേരിട്ട് ജില്ലാ അക്കൗണ്ടിൽ
+                      Designated account for District Committee fund custody
                     </p>
                   </div>
                 </div>
@@ -1066,19 +1065,19 @@ export default function FinanceManagementPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
                 <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>കളക്ഷൻ വഴി ലഭിച്ചത്:</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Collections Received:</span>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '3px' }}>
                     {formatINR(financeData.districtCollectedPaise)}
                   </div>
                 </div>
                 <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>ചിലവാക്കിയ തുക:</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Expenses Paid:</span>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#B45309', marginTop: '3px' }}>
                     {formatINR(financeData.districtExpensesPaise)}
                   </div>
                 </div>
                 <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>ഭൂവുടമയ്ക്ക് നൽകിയത്:</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Paid to Landowner:</span>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#E11D48', marginTop: '3px' }}>
                     {formatINR(financeData.districtLandownerPaise)}
                   </div>
@@ -1091,7 +1090,7 @@ export default function FinanceManagementPage() {
                     borderRadius: '10px',
                   }}
                 >
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E40AF' }}>ജില്ലാ ഫണ്ട് ബാക്കി:</span>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1E40AF' }}>Current Balance:</span>
                   <div
                     style={{
                       fontSize: '1.25rem',
@@ -1124,7 +1123,7 @@ export default function FinanceManagementPage() {
                     textAlign: 'center',
                   }}
                 >
-                  + ചിലവ് നൽകുക
+                  + Record Expense
                 </button>
                 <button
                   onClick={() => {
@@ -1143,7 +1142,7 @@ export default function FinanceManagementPage() {
                     textAlign: 'center',
                   }}
                 >
-                  + ഭൂവുടമ പേയ്‌മെന്റ്
+                  + Landowner Payment
                 </button>
               </div>
             </div>
@@ -1182,10 +1181,10 @@ export default function FinanceManagementPage() {
                   </span>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0F172A' }}>
-                      കുപ്പം യൂണിറ്റ് കമ്മിറ്റി ഫണ്ട്
+                      Kuppam Unit Committee Fund
                     </h3>
                     <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748B' }}>
-                      ആളുകളുടെ കൈവശമുള്ള തുകയും മെയിൻ ബാലൻസും
+                      Allocated funds, custodian holdings, and treasury balance
                     </p>
                   </div>
                 </div>
@@ -1206,13 +1205,13 @@ export default function FinanceManagementPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px' }}>
                 <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>ആകെ കുപ്പത്തിന് ലഭിച്ചത്:</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Collections Received:</span>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0F172A', marginTop: '3px' }}>
                     {formatINR(financeData.kuppamCollectedPaise)}
                   </div>
                 </div>
                 <div style={{ padding: '12px', background: '#F8FAFC', borderRadius: '10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>വ്യക്തികൾക്ക് ഏൽപ്പിച്ചത്:</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Allocated to Custodians:</span>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#4338CA', marginTop: '3px' }}>
                     {formatINR(financeData.totalHandedOverToHandlersPaise)}
                   </div>
@@ -1226,7 +1225,7 @@ export default function FinanceManagementPage() {
                   }}
                 >
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3730A3' }}>
-                    വ്യക്തികളുടെ കൈവശമുള്ള ബാക്കി:
+                    Held by Custodians:
                   </span>
                   <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#312E81', marginTop: '3px' }}>
                     {formatINR(financeData.totalBalanceHeldByHandlersPaise)}
@@ -1241,7 +1240,7 @@ export default function FinanceManagementPage() {
                   }}
                 >
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0F766E' }}>
-                    കുപ്പത്തിന്റെ ആകെ അവൈലബിൾ ഫണ്ട്:
+                    Total Available Fund:
                   </span>
                   <div
                     style={{
@@ -1272,7 +1271,7 @@ export default function FinanceManagementPage() {
                     textAlign: 'center',
                   }}
                 >
-                  🤝 പണം ഏൽപ്പിക്കുക
+                  Handover Funds
                 </button>
                 <button
                   onClick={() => setActiveTab('kuppam')}
@@ -1288,13 +1287,13 @@ export default function FinanceManagementPage() {
                     textAlign: 'center',
                   }}
                 >
-                  വ്യക്തികളെ കാണുക ({handlers.length}) →
+                  View Custodians ({handlers.length}) →
                 </button>
               </div>
             </div>
           </div>
 
-          {/* QUICK SUMMARY OF PEOPLE HOLDING KUPPAM MONEY */}
+          {/* CUSTODIANS SUMMARY LIST */}
           <div
             style={{
               background: '#FFFFFF',
@@ -1314,10 +1313,10 @@ export default function FinanceManagementPage() {
             >
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                  കുപ്പം ഫണ്ട് കൈവശമുള്ള വ്യക്തികൾ (Handlers & Accounts)
+                  Kuppam Fund Custodians & Accounts
                 </h3>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748B', marginTop: '2px' }}>
-                  ആരുടെയൊക്കെ കൈവശമാണ് പണം ഉള്ളതെന്നും ഓരോരുത്തരുടെയും ബാലൻസും
+                  Authorized committee members and accounts holding project funds
                 </p>
               </div>
               <button
@@ -1336,7 +1335,7 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                <Plus size={14} /> പുതിയ ആളെ ചേർക്കുക
+                <Plus size={14} /> Add Custodian
               </button>
             </div>
 
@@ -1351,10 +1350,10 @@ export default function FinanceManagementPage() {
               >
                 <Users size={36} color="#94A3B8" style={{ margin: '0 auto 10px' }} />
                 <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', margin: 0 }}>
-                  ഇതുവരെ ആളുകളെ/അക്കൗണ്ടുകളെ ചേർത്തിട്ടില്ല
+                  No custodians registered yet
                 </p>
                 <p style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '4px', marginBottom: '14px' }}>
-                  കുപ്പത്തിന്റെ പണം കൈവശം വെക്കുന്ന ആളുകളുടെ പേര് ചേർക്കുക (ഉദാ: മൻസൂർക്ക, ബാങ്ക്)
+                  Add authorized committee members or accounts holding funds (e.g. Mansoor, Bank)
                 </p>
                 <button
                   onClick={() => setIsHandlerModalOpen(true)}
@@ -1368,7 +1367,7 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  + ആളെ ചേർക്കുക
+                  + Add Custodian
                 </button>
               </div>
             ) : (
@@ -1401,7 +1400,7 @@ export default function FinanceManagementPage() {
                           <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>
                             {h.name}
                           </h4>
-                          <span style={{ fontSize: '0.72rem', color: '#64748B' }}>{h.role || 'കമ്മിറ്റി അംഗം'}</span>
+                          <span style={{ fontSize: '0.72rem', color: '#64748B' }}>{h.role || 'Committee Member'}</span>
                         </div>
                         <span
                           style={{
@@ -1412,6 +1411,7 @@ export default function FinanceManagementPage() {
                             background: '#E6F4EA',
                             color: '#137333',
                             border: '1px solid #CEEAD6',
+                            marginLeft: 'auto',
                           }}
                         >
                           {formatINR(stat.balancePaise)}
@@ -1430,13 +1430,13 @@ export default function FinanceManagementPage() {
                         }}
                       >
                         <div>
-                          <span style={{ color: '#64748B' }}>കൈപ്പറ്റിയത്:</span>
+                          <span style={{ color: '#64748B' }}>Handed Over:</span>
                           <div style={{ fontWeight: 700, color: '#0F172A', marginTop: '2px' }}>
                             {formatINR(stat.receivedPaise)}
                           </div>
                         </div>
                         <div>
-                          <span style={{ color: '#64748B' }}>ചിലവാക്കിയത്:</span>
+                          <span style={{ color: '#64748B' }}>Spent:</span>
                           <div style={{ fontWeight: 700, color: '#B45309', marginTop: '2px' }}>
                             {formatINR(stat.expensesPaise)}
                           </div>
@@ -1461,7 +1461,7 @@ export default function FinanceManagementPage() {
                             textAlign: 'center',
                           }}
                         >
-                          + പണം നൽകുക
+                          + Handover
                         </button>
                         <button
                           onClick={() => {
@@ -1484,7 +1484,7 @@ export default function FinanceManagementPage() {
                             textAlign: 'center',
                           }}
                         >
-                          + ചിലവ് നൽകുക
+                          + Expense
                         </button>
                       </div>
                     </div>
@@ -1496,7 +1496,7 @@ export default function FinanceManagementPage() {
         </div>
       )}
 
-      {/* TAB 2: KUPPAM COMMITTEE & HANDLERS */}
+      {/* TAB 2: KUPPAM CUSTODIANS */}
       {activeTab === 'kuppam' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div
@@ -1515,11 +1515,11 @@ export default function FinanceManagementPage() {
           >
             <div>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#134E4A' }}>
-                കുപ്പം കമ്മിറ്റി ഫണ്ടും വ്യക്തികളും
+                Kuppam Committee Custody & Allocations
               </h3>
               <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#0F766E' }}>
-                കുപ്പം കളക്ഷനിൽ നിന്ന് ലഭിച്ച ആകെ തുക: <strong>{formatINR(financeData.kuppamCollectedPaise)}</strong>.
-                ഇതിൽ നിന്ന് ആർക്കൊക്കെ എത്ര തുക കൈമാറി, ഓരോരുത്തരുടെയും കൈവശം ഇപ്പോൾ എത്ര ബാക്കിയുണ്ട് എന്ന് ഇവിടെ കാണാം.
+                Total Kuppam Collections: <strong>{formatINR(financeData.kuppamCollectedPaise)}</strong>.
+                Individual custody holdings, disbursements, and active balances.
               </p>
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -1535,7 +1535,7 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                + പുതിയ വ്യക്തിയെ ചേർക്കുക
+                + Add Custodian
               </button>
               <button
                 onClick={() => setIsHandoverModalOpen(true)}
@@ -1549,7 +1549,7 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                🤝 പണം ഏൽപ്പിക്കുക
+                Handover Funds
               </button>
             </div>
           </div>
@@ -1608,7 +1608,7 @@ export default function FinanceManagementPage() {
                         </h4>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '4px' }}>
-                        {h.role || 'കമ്മിറ്റി അംഗം'} {h.phone && `• 📞 ${h.phone}`}
+                        {h.role || 'Committee Member'} {h.phone && `• 📞 ${h.phone}`}
                       </div>
                     </div>
 
@@ -1622,7 +1622,7 @@ export default function FinanceManagementPage() {
                           display: 'block',
                         }}
                       >
-                        കൈവശമുള്ള ബാക്കി
+                        In-Hand Balance
                       </span>
                       <span
                         style={{
@@ -1648,7 +1648,7 @@ export default function FinanceManagementPage() {
                   >
                     <div style={{ padding: '8px', background: '#F8FAFC', borderRadius: '8px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', display: 'block' }}>
-                        കൈപ്പറ്റിയത്
+                        Handed Over
                       </span>
                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0F172A' }}>
                         {formatINR(stat.receivedPaise)}
@@ -1656,7 +1656,7 @@ export default function FinanceManagementPage() {
                     </div>
                     <div style={{ padding: '8px', background: '#F8FAFC', borderRadius: '8px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', display: 'block' }}>
-                        ചിലവാക്കിയത്
+                        Spent
                       </span>
                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#B45309' }}>
                         {formatINR(stat.expensesPaise)}
@@ -1664,7 +1664,7 @@ export default function FinanceManagementPage() {
                     </div>
                     <div style={{ padding: '8px', background: '#F8FAFC', borderRadius: '8px' }}>
                       <span style={{ fontSize: '0.68rem', color: '#64748B', textTransform: 'uppercase', display: 'block' }}>
-                        ഭൂവുടമയ്ക്ക്
+                        Landowner
                       </span>
                       <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#E11D48' }}>
                         {formatINR(stat.landownerPaise)}
@@ -1674,7 +1674,7 @@ export default function FinanceManagementPage() {
 
                   {h.notes && (
                     <p style={{ fontSize: '0.75rem', color: '#64748B', fontStyle: 'italic', marginBottom: '14px' }}>
-                      കുറിപ്പ്: {h.notes}
+                      Note: {h.notes}
                     </p>
                   )}
 
@@ -1696,7 +1696,7 @@ export default function FinanceManagementPage() {
                         textAlign: 'center',
                       }}
                     >
-                      + പണം നൽകുക
+                      + Handover
                     </button>
                     <button
                       onClick={() => {
@@ -1719,7 +1719,7 @@ export default function FinanceManagementPage() {
                         textAlign: 'center',
                       }}
                     >
-                      + ചിലവ് നൽകുക
+                      + Expense
                     </button>
                   </div>
                 </div>
@@ -1765,10 +1765,10 @@ export default function FinanceManagementPage() {
                 </span>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
-                    ജില്ലാ കമ്മിറ്റി ഫണ്ട് മാനേജ്‌മെന്റ്
+                    District Committee Fund Management
                   </h3>
                   <p style={{ margin: '3px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
-                    കളക്ഷൻ സമയത്ത് "District Committee" ആയി അടയാളപ്പെടുത്തിയ എല്ലാ തുകകളും ഇവിടെ ഓട്ടോമാറ്റിക്കായി ലഭിക്കുന്നു.
+                    Collections designated for District Committee are automatically aggregated here.
                   </p>
                 </div>
               </div>
@@ -1782,7 +1782,7 @@ export default function FinanceManagementPage() {
                     display: 'block',
                   }}
                 >
-                  നിലവിലെ ബാക്കി
+                  Current Balance
                 </span>
                 <span
                   style={{
@@ -1814,13 +1814,13 @@ export default function FinanceManagementPage() {
                 }}
               >
                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>
-                  കളക്ഷനിൽ നിന്ന് ലഭിച്ചത്
+                  Collections Received
                 </span>
                 <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0F172A', marginTop: '4px' }}>
                   {formatINR(financeData.districtCollectedPaise)}
                 </div>
                 <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
-                  റസീതുകളിൽ 'district' എന്ന് അടയാളപ്പെടുത്തിയത്
+                  Designated District Collections
                 </p>
               </div>
 
@@ -1833,13 +1833,13 @@ export default function FinanceManagementPage() {
                 }}
               >
                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>
-                  ജില്ലാ ഫണ്ടിൽ നിന്ന് ചിലവഴിച്ചത്
+                  Expenses Paid
                 </span>
                 <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#B45309', marginTop: '4px' }}>
                   {formatINR(financeData.districtExpensesPaise)}
                 </div>
                 <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
-                  ജില്ലാ കമ്മിറ്റി വഹിച്ച ചിലവുകൾ
+                  District Project Expenditures
                 </p>
               </div>
 
@@ -1852,13 +1852,13 @@ export default function FinanceManagementPage() {
                 }}
               >
                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>
-                  ഭൂവുടമയ്ക്ക് നൽകിയത്
+                  Paid to Landowner
                 </span>
                 <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#E11D48', marginTop: '4px' }}>
                   {formatINR(financeData.districtLandownerPaise)}
                 </div>
                 <p style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px', margin: 0 }}>
-                  സ്ഥലത്തിന്റെ ഉടമയ്ക്ക് നേരിട്ട് നൽകിയത്
+                  Direct land purchase disbursements
                 </p>
               </div>
             </div>
@@ -1879,7 +1879,7 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                + ജില്ലാ ചിലവ് രേഖപ്പെടുത്തുക
+                + Record District Expense
               </button>
               <button
                 onClick={() => {
@@ -1896,7 +1896,7 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                + ഭൂവുടമ പേയ്‌മെന്റ് നൽകുക
+                + Landowner Payment
               </button>
             </div>
           </div>
@@ -1928,10 +1928,10 @@ export default function FinanceManagementPage() {
             >
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                  എല്ലാ ഇടപാടുകളുടെയും കണക്ക് (Transaction Ledger)
+                  Transaction & Audit Ledger
                 </h3>
                 <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748B' }}>
-                  പണം നൽകൽ, ചിലവുകൾ, ഭൂവുടമ പേയ്‌മെന്റുകൾ എന്നിവയുടെ വിശദാംശങ്ങൾ
+                  Comprehensive audit trail of handovers, expenses, and landowner disbursements
                 </p>
               </div>
 
@@ -1951,7 +1951,7 @@ export default function FinanceManagementPage() {
                 }}
               >
                 <Download size={15} />
-                <span>ഡൗൺലോഡ് റിപ്പോർട്ട് (PDF)</span>
+                <span>Download Report (PDF)</span>
               </button>
             </div>
 
@@ -1965,7 +1965,7 @@ export default function FinanceManagementPage() {
                 />
                 <input
                   type="text"
-                  placeholder="തിരയുക (പേര്, കാരണം, റെഫറൻസ്)..."
+                  placeholder="Search by name, purpose, reference..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -1994,10 +1994,10 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                <option value="all">എല്ലാ തരങ്ങളും (All Types)</option>
-                <option value="handover">പണം ഏൽപ്പിച്ചത് (Handovers)</option>
-                <option value="expense">ചിലവുകൾ (Expenses)</option>
-                <option value="landowner_payment">ഭൂവുടമ പേയ്‌മെന്റ് (Landowner)</option>
+                <option value="all">All Types</option>
+                <option value="handover">Handovers</option>
+                <option value="expense">Expenses</option>
+                <option value="landowner_payment">Landowner Payments</option>
               </select>
 
               <select
@@ -2012,9 +2012,9 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                <option value="all">എല്ലാ അക്കൗണ്ടുകളും (All Accounts)</option>
-                <option value="district">ജില്ലാ കമ്മിറ്റി</option>
-                <option value="kuppam_main">കുപ്പം മെയിൻ ഫണ്ട്</option>
+                <option value="all">All Accounts</option>
+                <option value="district">District Committee</option>
+                <option value="kuppam_main">Kuppam Main Treasury</option>
                 {handlers.map((h) => (
                   <option key={h.id} value={`handler_${h.id}`}>
                     {h.name}
@@ -2038,20 +2038,20 @@ export default function FinanceManagementPage() {
                     borderBottom: '1px solid #E2E8F0',
                   }}
                 >
-                  <th style={{ padding: '12px 16px' }}>തീയതി & നമ്പർ</th>
-                  <th style={{ padding: '12px 16px' }}>ഇടപാട് തരം</th>
-                  <th style={{ padding: '12px 16px' }}>വിവരണം / കാരണം</th>
-                  <th style={{ padding: '12px 16px' }}>ഏത് അക്കൗണ്ടിൽ നിന്ന്</th>
-                  <th style={{ padding: '12px 16px' }}>ആർക്ക് നൽകി</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>തുക</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center' }}>റദ്ദാക്കുക</th>
+                  <th style={{ padding: '12px 16px' }}>Date & Ref</th>
+                  <th style={{ padding: '12px 16px' }}>Type</th>
+                  <th style={{ padding: '12px 16px' }}>Description / Purpose</th>
+                  <th style={{ padding: '12px 16px' }}>Source Account</th>
+                  <th style={{ padding: '12px 16px' }}>Recipient / To</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Amount</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRecords.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8' }}>
-                      ഇടപാടുകൾ ഒന്നും കണ്ടെത്തിയില്ല
+                      No financial transactions found
                     </td>
                   </tr>
                 ) : (
@@ -2086,7 +2086,7 @@ export default function FinanceManagementPage() {
                                 color: '#1E40AF',
                               }}
                             >
-                              🤝 പണം ഏൽപ്പിച്ചത്
+                              Handover
                             </span>
                           )}
                           {r.type === 'expense' && (
@@ -2100,7 +2100,7 @@ export default function FinanceManagementPage() {
                                 color: '#B45309',
                               }}
                             >
-                              🧾 ചിലവ് ({r.category})
+                              Expense ({r.category})
                             </span>
                           )}
                           {r.type === 'landowner_payment' && (
@@ -2114,7 +2114,7 @@ export default function FinanceManagementPage() {
                                 color: '#9F1239',
                               }}
                             >
-                              🏛️ ഭൂവുടമ പേയ്‌മെന്റ്
+                              Land Payment
                             </span>
                           )}
                           {isCancelled && (
@@ -2129,7 +2129,7 @@ export default function FinanceManagementPage() {
                                 color: '#991B1B',
                               }}
                             >
-                              റദ്ദാക്കി
+                              Cancelled
                             </span>
                           )}
                         </td>
@@ -2172,7 +2172,7 @@ export default function FinanceManagementPage() {
                                 setCancellingRecord(r);
                                 setCancelReason('');
                               }}
-                              title="ഈ ഇടപാട് റദ്ദാക്കുക"
+                              title="Cancel this transaction"
                               style={{
                                 padding: '5px',
                                 color: '#DC2626',
@@ -2184,7 +2184,7 @@ export default function FinanceManagementPage() {
                               <Trash2 size={14} />
                             </button>
                           ) : (
-                            <span style={{ fontSize: '0.72rem', color: '#DC2626', fontStyle: 'italic' }}>റദ്ദാക്കി</span>
+                            <span style={{ fontSize: '0.72rem', color: '#DC2626', fontStyle: 'italic' }}>Cancelled</span>
                           )}
                         </td>
                       </tr>
@@ -2197,7 +2197,7 @@ export default function FinanceManagementPage() {
         </div>
       )}
 
-      {/* MODAL 1: ADD KUPPAM HANDLER (PERSON) */}
+      {/* MODAL 1: ADD CUSTODIAN */}
       {isHandlerModalOpen && (
         <div
           style={{
@@ -2233,7 +2233,7 @@ export default function FinanceManagementPage() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                പുതിയ വ്യക്തിയെ/അക്കൗണ്ട് ചേർക്കുക
+                Add Fund Custodian / Account
               </h3>
               <button
                 onClick={() => setIsHandlerModalOpen(false)}
@@ -2246,12 +2246,12 @@ export default function FinanceManagementPage() {
             <form onSubmit={handleAddHandler} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  വ്യക്തിയുടെ / അക്കൗണ്ടിന്റെ പേര് *
+                  Custodian / Account Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="ഉദാ: മൻസൂർക്ക, റഷീദ്, കുപ്പം ബാങ്ക്"
+                  placeholder="e.g. Mansoor, Rasheed, Kuppam Bank Account"
                   value={handlerForm.name}
                   onChange={(e) => setHandlerForm({ ...handlerForm, name: e.target.value })}
                   style={{
@@ -2266,11 +2266,11 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  സ്ഥാനം / റോൾ (Role)
+                  Role / Designation
                 </label>
                 <input
                   type="text"
-                  placeholder="ഉദാ: ഫൈനാൻസ് കൺവീനർ, ട്രഷറർ"
+                  placeholder="e.g. Finance Convener, Treasurer, Committee Member"
                   value={handlerForm.role}
                   onChange={(e) => setHandlerForm({ ...handlerForm, role: e.target.value })}
                   style={{
@@ -2285,11 +2285,11 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  ഫോൺ നമ്പർ (Phone)
+                  Phone Number
                 </label>
                 <input
                   type="tel"
-                  placeholder="10-digit mobile"
+                  placeholder="10-digit mobile number"
                   value={handlerForm.phone}
                   onChange={(e) => setHandlerForm({ ...handlerForm, phone: e.target.value })}
                   style={{
@@ -2304,11 +2304,11 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  കുറിപ്പ് (Notes)
+                  Notes / Details
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="അധിക വിവരങ്ങൾ..."
+                  placeholder="Additional context or account notes..."
                   value={handlerForm.notes}
                   onChange={(e) => setHandlerForm({ ...handlerForm, notes: e.target.value })}
                   style={{
@@ -2336,7 +2336,7 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  റദ്ദാക്കുക
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -2353,7 +2353,7 @@ export default function FinanceManagementPage() {
                     opacity: isSubmitting ? 0.6 : 1,
                   }}
                 >
-                  {isSubmitting ? 'ചേർക്കുന്നു...' : 'സേവ് ചെയ്യുക'}
+                  {isSubmitting ? 'Saving...' : 'Save Custodian'}
                 </button>
               </div>
             </form>
@@ -2361,7 +2361,7 @@ export default function FinanceManagementPage() {
         </div>
       )}
 
-      {/* MODAL 2: HANDOVER MONEY TO PERSON */}
+      {/* MODAL 2: HANDOVER FUNDS */}
       {isHandoverModalOpen && (
         <div
           style={{
@@ -2397,7 +2397,7 @@ export default function FinanceManagementPage() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                കുപ്പം ഫണ്ടിൽ നിന്ന് പണം ഏൽപ്പിക്കുക
+                Handover Funds from Kuppam Treasury
               </h3>
               <button
                 onClick={() => setIsHandoverModalOpen(false)}
@@ -2410,7 +2410,7 @@ export default function FinanceManagementPage() {
             <form onSubmit={handleRecordHandover} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  ആർക്കാണ് പണം നൽകുന്നത്? *
+                  Recipient Custodian *
                 </label>
                 <select
                   required
@@ -2425,29 +2425,29 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  <option value="">വ്യക്തിയെ തിരഞ്ഞെടുക്കുക...</option>
+                  <option value="">Select custodian...</option>
                   {handlers.map((h) => (
                     <option key={h.id} value={h.id}>
-                      {h.name} ({h.role || 'അംഗം'})
+                      {h.name} ({h.role || 'Member'})
                     </option>
                   ))}
                 </select>
                 {handlers.length === 0 && (
                   <p style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '4px', margin: 0 }}>
-                    വ്യക്തികളെ ചേർത്തിട്ടില്ല. ദയവായി ആദ്യം 'വ്യക്തിയെ ചേർക്കുക' ക്ലിക്ക് ചെയ്യുക.
+                    No custodians registered. Please add a custodian first.
                   </p>
                 )}
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  ഏൽപ്പിച്ച തുക (Amount in ₹) *
+                  Handover Amount (₹) *
                 </label>
                 <input
                   type="number"
                   required
                   min="1"
-                  placeholder="ഉദാ: 50000"
+                  placeholder="e.g. 50000"
                   value={handoverForm.amountRupees}
                   onChange={(e) => setHandoverForm({ ...handoverForm, amountRupees: e.target.value })}
                   style={{
@@ -2463,7 +2463,7 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  തീയതി (Date) *
+                  Date *
                 </label>
                 <input
                   type="date"
@@ -2482,11 +2482,11 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  കുറിപ്പ് (Notes)
+                  Purpose / Notes
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="എന്തിനാണ് പണം ഏൽപ്പിച്ചത്..."
+                  placeholder="Purpose of funds handover..."
                   value={handoverForm.notes}
                   onChange={(e) => setHandoverForm({ ...handoverForm, notes: e.target.value })}
                   style={{
@@ -2514,7 +2514,7 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  റദ്ദാക്കുക
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -2531,7 +2531,7 @@ export default function FinanceManagementPage() {
                     opacity: isSubmitting || handlers.length === 0 ? 0.6 : 1,
                   }}
                 >
-                  {isSubmitting ? 'രേഖപ്പെടുത്തുന്നു...' : 'ഏൽപ്പിച്ചതായി രേഖപ്പെടുത്തുക'}
+                  {isSubmitting ? 'Recording...' : 'Record Handover'}
                 </button>
               </div>
             </form>
@@ -2539,7 +2539,7 @@ export default function FinanceManagementPage() {
         </div>
       )}
 
-      {/* MODAL 3: ADD EXPENSE */}
+      {/* MODAL 3: RECORD EXPENSE */}
       {isExpenseModalOpen && (
         <div
           style={{
@@ -2575,7 +2575,7 @@ export default function FinanceManagementPage() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                ചിലവ് രേഖപ്പെടുത്തുക (Add Expense)
+                Record Project Expense
               </h3>
               <button
                 onClick={() => setIsExpenseModalOpen(false)}
@@ -2588,7 +2588,7 @@ export default function FinanceManagementPage() {
             <form onSubmit={handleRecordExpense} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  ഏത് അക്കൗണ്ടിൽ നിന്നാണ് നൽകിയത്? (Paid From) *
+                  Paid From (Source Account) *
                 </label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label
@@ -2612,9 +2612,9 @@ export default function FinanceManagementPage() {
                       style={{ marginTop: '2px' }}
                     />
                     <div style={{ fontSize: '0.8rem' }}>
-                      <span style={{ fontWeight: 800, color: '#0F172A' }}>👤 കുപ്പം കമ്മിറ്റി - വ്യക്തിയുടെ പക്കൽ നിന്ന്</span>
+                      <span style={{ fontWeight: 800, color: '#0F172A' }}>👤 Kuppam Custodian — In-Hand Fund</span>
                       <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748B' }}>
-                        മൻസൂർക്ക അല്ലെങ്കിൽ മറ്റ് അംഗങ്ങളുടെ കയ്യിൽ നിന്ന്
+                        Paid by an authorized custodian holding funds
                       </p>
                     </div>
                   </label>
@@ -2635,12 +2635,12 @@ export default function FinanceManagementPage() {
                           cursor: 'pointer',
                         }}
                       >
-                        <option value="">വ്യക്തിയെ തിരഞ്ഞെടുക്കുക...</option>
+                        <option value="">Select custodian...</option>
                         {handlers.map((h) => {
                           const bal = financeData.handlerStats[h.id]?.balancePaise || 0;
                           return (
                             <option key={h.id} value={h.id}>
-                              {h.name} (കൈവശം: {formatINR(bal)})
+                              {h.name} (In-hand: {formatINR(bal)})
                             </option>
                           );
                         })}
@@ -2669,9 +2669,9 @@ export default function FinanceManagementPage() {
                       style={{ marginTop: '2px' }}
                     />
                     <div style={{ fontSize: '0.8rem' }}>
-                      <span style={{ fontWeight: 800, color: '#0F172A' }}>🏛️ ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്</span>
+                      <span style={{ fontWeight: 800, color: '#0F172A' }}>🏛️ District Committee Account</span>
                       <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748B' }}>
-                        ജില്ലാ ഫണ്ടിൽ നിന്ന് (ലഭ്യമായത്: {formatINR(financeData.districtBalancePaise)})
+                        Paid from District Fund (Available: {formatINR(financeData.districtBalancePaise)})
                       </p>
                     </div>
                   </label>
@@ -2697,9 +2697,9 @@ export default function FinanceManagementPage() {
                       style={{ marginTop: '2px' }}
                     />
                     <div style={{ fontSize: '0.8rem' }}>
-                      <span style={{ fontWeight: 800, color: '#0F172A' }}>🏢 കുപ്പം മെയിൻ ക്യാഷ്</span>
+                      <span style={{ fontWeight: 800, color: '#0F172A' }}>🏢 Kuppam Main Treasury</span>
                       <p style={{ margin: '2px 0 0', fontSize: '0.72rem', color: '#64748B' }}>
-                        നേരിട്ട് കുപ്പം കൗണ്ടർ ഫണ്ടിൽ നിന്ന്
+                        Paid directly from counter collections
                       </p>
                     </div>
                   </label>
@@ -2708,12 +2708,12 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  ചിലവിന്റെ കാരണം (Purpose / Title) *
+                  Purpose / Description *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="ഉദാ: പോസ്റ്റർ പ്രിന്റിംഗ്, ഡോക്യുമെന്റേഷൻ ചിലവ്"
+                  placeholder="e.g. Poster printing, documentation, travel allowance"
                   value={expenseForm.title}
                   onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })}
                   style={{
@@ -2729,7 +2729,7 @@ export default function FinanceManagementPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    തുക (Amount in ₹) *
+                    Amount (₹) *
                   </label>
                   <input
                     type="number"
@@ -2751,7 +2751,7 @@ export default function FinanceManagementPage() {
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    വിഭാഗം (Category)
+                    Category
                   </label>
                   <select
                     value={expenseForm.category}
@@ -2765,11 +2765,11 @@ export default function FinanceManagementPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    <option value="printing">പ്രിന്റിംഗ് (Printing)</option>
-                    <option value="documentation">ഡോക്യുമെന്റേഷൻ (Documentation)</option>
-                    <option value="travel">യാത്രാപ്പടി (Travel)</option>
-                    <option value="office">ഓഫീസ് ചിലവ് (Office)</option>
-                    <option value="other">മറ്റു ചിലവുകൾ (Other)</option>
+                    <option value="printing">Printing</option>
+                    <option value="documentation">Documentation</option>
+                    <option value="travel">Travel Allowance</option>
+                    <option value="office">Office & Admin</option>
+                    <option value="other">Other Expenses</option>
                   </select>
                 </div>
               </div>
@@ -2777,7 +2777,7 @@ export default function FinanceManagementPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    തീയതി (Date) *
+                    Date *
                   </label>
                   <input
                     type="date"
@@ -2795,11 +2795,11 @@ export default function FinanceManagementPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    ആർക്ക് നൽകി (Recipient)
+                    Recipient / Vendor
                   </label>
                   <input
                     type="text"
-                    placeholder="സ്ഥാപനം / വ്യക്തി"
+                    placeholder="Vendor or recipient name"
                     value={expenseForm.recipient}
                     onChange={(e) => setExpenseForm({ ...expenseForm, recipient: e.target.value })}
                     style={{
@@ -2815,11 +2815,11 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  കുറിപ്പ് (Notes)
+                  Notes / Bill Reference
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="ബിൽ നമ്പർ അല്ലെങ്കിൽ കൂടുതൽ വിവരങ്ങൾ..."
+                  placeholder="Invoice number or additional details..."
                   value={expenseForm.notes}
                   onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
                   style={{
@@ -2847,7 +2847,7 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  റദ്ദാക്കുക
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -2864,7 +2864,7 @@ export default function FinanceManagementPage() {
                     opacity: isSubmitting ? 0.6 : 1,
                   }}
                 >
-                  {isSubmitting ? 'രേഖപ്പെടുത്തുന്നു...' : 'ചിലവ് സേവ് ചെയ്യുക'}
+                  {isSubmitting ? 'Saving...' : 'Save Expense'}
                 </button>
               </div>
             </form>
@@ -2908,7 +2908,7 @@ export default function FinanceManagementPage() {
               }}
             >
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                ഭൂവുടമയ്ക്ക് നൽകിയ പേയ്‌മെന്റ്
+                Record Landowner Payment
               </h3>
               <button
                 onClick={() => setIsLandownerModalOpen(false)}
@@ -2921,7 +2921,7 @@ export default function FinanceManagementPage() {
             <form onSubmit={handleRecordLandowner} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  ഏത് അക്കൗണ്ടിൽ നിന്നാണ് നൽകിയത്? *
+                  Paid From (Source Account) *
                 </label>
                 <select
                   value={landownerForm.sourceType}
@@ -2940,16 +2940,16 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  <option value="district">🏛️ ജില്ലാ കമ്മിറ്റി അക്കൗണ്ട്</option>
-                  <option value="kuppam_handler">👤 കുപ്പം കമ്മിറ്റി - വ്യക്തിയുടെ കൈവശമുള്ളത്</option>
-                  <option value="kuppam_main">🏢 കുപ്പം മെയിൻ ഫണ്ട്</option>
+                  <option value="district">🏛️ District Committee Account</option>
+                  <option value="kuppam_handler">👤 Kuppam Custodian In-Hand Fund</option>
+                  <option value="kuppam_main">🏢 Kuppam Main Treasury</option>
                 </select>
               </div>
 
               {landownerForm.sourceType === 'kuppam_handler' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                    ഏത് വ്യക്തിയാണ് നൽകിയത്? *
+                    Select Custodian *
                   </label>
                   <select
                     required
@@ -2964,7 +2964,7 @@ export default function FinanceManagementPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    <option value="">വ്യക്തിയെ തിരഞ്ഞെടുക്കുക...</option>
+                    <option value="">Select custodian...</option>
                     {handlers.map((h) => (
                       <option key={h.id} value={h.id}>
                         {h.name}
@@ -2976,13 +2976,13 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  നൽകിയ തുക (Amount in ₹) *
+                  Disbursement Amount (₹) *
                 </label>
                 <input
                   type="number"
                   required
                   min="1"
-                  placeholder="തുക നൽകുക"
+                  placeholder="Enter payment amount"
                   value={landownerForm.amountRupees}
                   onChange={(e) => setLandownerForm({ ...landownerForm, amountRupees: e.target.value })}
                   style={{
@@ -2998,7 +2998,7 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  തീയതി (Date) *
+                  Date *
                 </label>
                 <input
                   type="date"
@@ -3017,11 +3017,11 @@ export default function FinanceManagementPage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  കുറിപ്പ് (Notes)
+                  Notes / Agreement Reference
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="റെസീപ്റ്റ് നമ്പർ അല്ലെങ്കിൽ കരാർ വിവരങ്ങൾ..."
+                  placeholder="Receipt number or deed agreement notes..."
                   value={landownerForm.notes}
                   onChange={(e) => setLandownerForm({ ...landownerForm, notes: e.target.value })}
                   style={{
@@ -3049,7 +3049,7 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  റദ്ദാക്കുക
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -3066,7 +3066,7 @@ export default function FinanceManagementPage() {
                     opacity: isSubmitting ? 0.6 : 1,
                   }}
                 >
-                  {isSubmitting ? 'രേഖപ്പെടുത്തുന്നു...' : 'സേവ് ചെയ്യുക'}
+                  {isSubmitting ? 'Recording...' : 'Record Payment'}
                 </button>
               </div>
             </form>
@@ -3111,22 +3111,21 @@ export default function FinanceManagementPage() {
               }}
             >
               <AlertCircle size={20} color="#DC2626" />
-              ഇടപാട് റദ്ദാക്കുക (Cancel Transaction)
+              Cancel Transaction
             </h3>
             <p style={{ fontSize: '0.82rem', color: '#475569', marginTop: '8px', marginBottom: '16px' }}>
-              <strong>{cancellingRecord.recordNumber}</strong> - {cancellingRecord.title} (
-              {formatINR(cancellingRecord.amountPaise)}) റദ്ദാക്കാൻ ആഗ്രഹിക്കുന്നുണ്ടോ? ഇത് റദ്ദാക്കിയാൽ ബാലൻസ്
-              പഴയപടിയാകും.
+              Are you sure you want to cancel transaction <strong>{cancellingRecord.recordNumber}</strong> (
+              {formatINR(cancellingRecord.amountPaise)})? The account balance will be restored automatically.
             </p>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                റദ്ദാക്കാനുള്ള കാരണം (Reason) *
+                Cancellation Reason *
               </label>
               <input
                 type="text"
                 required
-                placeholder="ഉദാ: തെറ്റായി രേഖപ്പെടുത്തിയ തുക..."
+                placeholder="e.g. Erroneous amount, duplicate entry..."
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 style={{
@@ -3154,7 +3153,7 @@ export default function FinanceManagementPage() {
                   cursor: 'pointer',
                 }}
               >
-                വേണ്ട
+                Keep Transaction
               </button>
               <button
                 type="button"
@@ -3172,7 +3171,7 @@ export default function FinanceManagementPage() {
                   opacity: isSubmitting || !cancelReason.trim() ? 0.6 : 1,
                 }}
               >
-                {isSubmitting ? 'റദ്ദാക്കുന്നു...' : 'റദ്ദാക്കുക'}
+                {isSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}
               </button>
             </div>
           </div>

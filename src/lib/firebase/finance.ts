@@ -53,7 +53,7 @@ export async function createKuppamHandler(data: {
   const docRef = await addDoc(collection(db, HANDLERS_COLLECTION), {
     name: data.name.trim(),
     phone: data.phone?.trim() || '',
-    role: data.role?.trim() || 'കമ്മിറ്റി അംഗം',
+    role: data.role?.trim() || 'Committee Member',
     notes: data.notes?.trim() || '',
     isActive: true,
     createdAt: serverTimestamp(),
@@ -79,7 +79,7 @@ export function subscribeToFinanceRecords(callback: (records: FinanceRecord[]) =
   );
 }
 
-// 4. Record Handover of Money to a Person (കുപ്പം ഫണ്ടിൽ നിന്ന് ഒരാളെ ഏൽപ്പിക്കൽ)
+// 4. Record Handover of Money to a Person
 export async function recordMoneyHandover(data: {
   amountPaise: number;
   targetHandlerId: string;
@@ -98,10 +98,10 @@ export async function recordMoneyHandover(data: {
     amountPaise: data.amountPaise,
     sourceType: data.sourceType || 'kuppam_main',
     sourceHandlerId: data.sourceHandlerId || '',
-    sourceHandlerName: data.sourceHandlerName || 'കുപ്പം മെയിൻ ഫണ്ട്',
+    sourceHandlerName: data.sourceHandlerName || 'Kuppam Main Treasury',
     targetHandlerId: data.targetHandlerId,
     targetHandlerName: data.targetHandlerName,
-    title: `${data.targetHandlerName}-ക്ക് ഏൽപ്പിച്ച തുക`,
+    title: `Funds Handed over to ${data.targetHandlerName}`,
     date: data.date,
     notes: data.notes || '',
     status: 'active',
@@ -112,7 +112,7 @@ export async function recordMoneyHandover(data: {
   return docRef.id;
 }
 
-// 5. Record an Expense (ചെലവ് രേഖപ്പെടുത്തൽ)
+// 5. Record an Expense
 export async function recordFinanceExpense(data: {
   amountPaise: number;
   title: string;
@@ -134,7 +134,7 @@ export async function recordFinanceExpense(data: {
     category: data.category || 'other',
     sourceType: data.sourceType,
     sourceHandlerId: data.sourceHandlerId || '',
-    sourceHandlerName: data.sourceHandlerName || (data.sourceType === 'district' ? 'ജില്ലാ കമ്മിറ്റി' : 'കുപ്പം മെയിൻ ഫണ്ട്'),
+    sourceHandlerName: data.sourceHandlerName || (data.sourceType === 'district' ? 'District Committee' : 'Kuppam Main Treasury'),
     recipient: data.recipient?.trim() || '',
     date: data.date,
     notes: data.notes || '',
@@ -146,7 +146,7 @@ export async function recordFinanceExpense(data: {
   return docRef.id;
 }
 
-// 6. Record Landowner Payment (ഭൂവുടമയ്ക്കുള്ള പേയ്മെന്റ്)
+// 6. Record Landowner Payment
 export async function recordLandownerPayment(data: {
   amountPaise: number;
   sourceType: FinanceSourceType;
@@ -161,11 +161,11 @@ export async function recordLandownerPayment(data: {
     recordNumber: generateRecordNumber('LND'),
     type: 'landowner_payment' as FinanceRecordType,
     amountPaise: data.amountPaise,
-    title: 'സ്ഥല ഉടമയ്ക്കുള്ള പേയ്‌മെന്റ്',
+    title: 'Payment to Landowner',
     sourceType: data.sourceType,
     sourceHandlerId: data.sourceHandlerId || '',
-    sourceHandlerName: data.sourceHandlerName || (data.sourceType === 'district' ? 'ജില്ലാ കമ്മിറ്റി' : 'കുപ്പം മെയിൻ ഫണ്ട്'),
-    recipient: 'സ്ഥല ഉടമ (Landowner)',
+    sourceHandlerName: data.sourceHandlerName || (data.sourceType === 'district' ? 'District Committee' : 'Kuppam Main Treasury'),
+    recipient: 'Landowner',
     date: data.date,
     notes: data.notes || '',
     status: 'active',
