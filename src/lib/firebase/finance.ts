@@ -191,3 +191,43 @@ export async function cancelFinanceRecord(
     cancelledAt: serverTimestamp(),
   });
 }
+
+// 8. Update / Edit a Finance Record (Admin only)
+export async function updateFinanceRecord(
+  recordId: string,
+  data: {
+    amountPaise?: number;
+    title?: string;
+    category?: string;
+    sourceType?: FinanceSourceType;
+    sourceHandlerId?: string;
+    sourceHandlerName?: string;
+    targetHandlerId?: string;
+    targetHandlerName?: string;
+    recipient?: string;
+    date?: string;
+    notes?: string;
+  },
+  admin: { uid: string; name: string }
+): Promise<void> {
+  const docRef = doc(db, RECORDS_COLLECTION, recordId);
+  const updatePayload: Record<string, any> = {
+    updatedByUid: admin.uid,
+    updatedByName: admin.name,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (data.amountPaise !== undefined) updatePayload.amountPaise = data.amountPaise;
+  if (data.title !== undefined) updatePayload.title = data.title;
+  if (data.category !== undefined) updatePayload.category = data.category;
+  if (data.sourceType !== undefined) updatePayload.sourceType = data.sourceType;
+  if (data.sourceHandlerId !== undefined) updatePayload.sourceHandlerId = data.sourceHandlerId;
+  if (data.sourceHandlerName !== undefined) updatePayload.sourceHandlerName = data.sourceHandlerName;
+  if (data.targetHandlerId !== undefined) updatePayload.targetHandlerId = data.targetHandlerId;
+  if (data.targetHandlerName !== undefined) updatePayload.targetHandlerName = data.targetHandlerName;
+  if (data.recipient !== undefined) updatePayload.recipient = data.recipient;
+  if (data.date !== undefined) updatePayload.date = data.date;
+  if (data.notes !== undefined) updatePayload.notes = data.notes;
+
+  await updateDoc(docRef, updatePayload);
+}

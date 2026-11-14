@@ -51,7 +51,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     if (!isLoading && !adminUser && !isLoginPage) {
       router.push('/admin/login');
     } else if (!isLoading && adminUser && adminUser.role === 'volunteer') {
-      const restrictedForVolunteer = ['/admin/cash', '/admin/verify', '/admin/events', '/admin/settings', '/admin/finance'];
+      const restrictedForVolunteer = ['/admin/cash', '/admin/verify', '/admin/events', '/admin/settings'];
       if (restrictedForVolunteer.includes(pathname) || pathname === '/admin') {
         router.replace('/admin/reports');
       }
@@ -107,6 +107,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 
   const volunteerNavItems = [
     { label: 'Financial Reports', href: '/admin/reports', icon: FileText },
+    { label: 'Finance Management', href: '/admin/finance', icon: Landmark },
     { label: 'Transactions & Offers', href: '/admin/offers', icon: Receipt },
   ];
 

@@ -18,6 +18,7 @@ import {
   recordFinanceExpense,
   recordLandownerPayment,
   cancelFinanceRecord,
+  updateFinanceRecord,
 } from '@/lib/firebase/finance';
 import { generateFinanceReportPDF } from '@/lib/reports/financeReportGenerator';
 import {
@@ -28,6 +29,8 @@ import {
   ArrowRightLeft,
   Plus,
   Trash2,
+  Pencil,
+  Lock,
   AlertCircle,
   CheckCircle2,
   Search,
@@ -47,6 +50,7 @@ function formatINR(paise: number): string {
 
 export default function FinanceManagementPage() {
   const { adminUser } = useAdminAuth();
+  const isVolunteer = adminUser?.role === 'volunteer';
 
   // 1. Live Real-Time Cash Collections from Firestore
   const [cashCollections, setCashCollections] = useState<any[]>([]);
@@ -67,6 +71,7 @@ export default function FinanceManagementPage() {
   const [isLandownerModalOpen, setIsLandownerModalOpen] = useState(false);
   const [cancellingRecord, setCancellingRecord] = useState<FinanceRecord | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [editingRecord, setEditingRecord] = useState<FinanceRecord | null>(null);
 
   // Form states
   const [handlerForm, setHandlerForm] = useState({ name: '', phone: '', role: 'Committee Member', notes: '' });
@@ -91,6 +96,17 @@ export default function FinanceManagementPage() {
     sourceType: 'district' as 'district' | 'kuppam_handler' | 'kuppam_main',
     sourceHandlerId: '',
     date: new Date().toISOString().split('T')[0],
+    notes: '',
+  });
+  const [editForm, setEditForm] = useState({
+    amountRupees: '',
+    date: new Date().toISOString().split('T')[0],
+    title: '',
+    category: 'printing',
+    sourceType: 'kuppam_handler' as 'district' | 'kuppam_main' | 'kuppam_handler',
+    sourceHandlerId: '',
+    targetHandlerId: '',
+    recipient: '',
     notes: '',
   });
 
@@ -448,6 +464,149 @@ export default function FinanceManagementPage() {
     }
   };
 
+  // Handle Open Edit Modal
+  const handleOpenEditRecord = (r: FinanceRecord) => {
+    if (isVolunteer) return;
+    setEditingRecord(r);
+    setEditForm({
+      amountRupees: (Math.round(r.amountPaise / 100)).toString(),
+      date: r.date || new Date().toISOString().split('T')[0],
+      title: r.title || '',
+      category: r.category || 'printing',
+      sourceType: r.sourceType === 'handler' ? 'kuppam_handler' : (r.sourceType || 'district'),
+      sourceHandlerId: r.sourceHandlerId || '',
+      targetHandlerId: r.targetHandlerId || '',
+      recipient: r.recipient || '',
+      notes: r.notes || '',
+    });
+  };
+
+  // Handle Save Edit Record
+  const handleSaveEditRecord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecord || isVolunteer) return;
+
+    const numAmt = parseFloat(editForm.amountRupees);
+    if (isNaN(numAmt) || numAmt <= 0) {
+      setErrorMessage('Please enter a valid amount.');
+      return;
+    }
+
+    const amountPaise = Math.round(numAmt * 100);
+
+    try {
+      setIsSubmitting(true);
+      const adminActor = {
+        uid: adminUser?.uid || 'admin',
+        name: adminUser?.name || 'Administrator',
+      };
+
+      if (editingRecord.type === 'handover') {
+        if (!editForm.targetHandlerId) {
+          setErrorMessage('Please select a recipient custodian.');
+          setIsSubmitting(false);
+          return;
+        }
+        const targetHandler = handlers.find((h) => h.id === editForm.targetHandlerId);
+        const targetHandlerName = targetHandler ? targetHandler.name : 'Custodian';
+
+        await updateFinanceRecord(
+          editingRecord.id,
+          {
+            amountPaise,
+            date: editForm.date,
+            targetHandlerId: editForm.targetHandlerId,
+            targetHandlerName,
+            title: `Funds Handed over to ${targetHandlerName}`,
+            notes: editForm.notes,
+          },
+          adminActor
+        );
+      } else if (editingRecord.type === 'expense') {
+        if (!editForm.title.trim()) {
+          setErrorMessage('Please enter an expense title.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        let sourceType: FinanceSourceType = 'district';
+        let sourceHandlerId = '';
+        let sourceHandlerName = 'District Committee Account';
+
+        if (editForm.sourceType === 'kuppam_handler') {
+          if (!editForm.sourceHandlerId) {
+            setErrorMessage('Please select the paying custodian.');
+            setIsSubmitting(false);
+            return;
+          }
+          sourceType = 'handler';
+          sourceHandlerId = editForm.sourceHandlerId;
+          const h = handlers.find((x) => x.id === sourceHandlerId);
+          sourceHandlerName = h?.name || 'Custodian';
+        } else if (editForm.sourceType === 'kuppam_main') {
+          sourceType = 'kuppam_main';
+          sourceHandlerName = 'Kuppam Main Treasury';
+        }
+
+        await updateFinanceRecord(
+          editingRecord.id,
+          {
+            amountPaise,
+            title: editForm.title.trim(),
+            category: editForm.category,
+            sourceType,
+            sourceHandlerId,
+            sourceHandlerName,
+            recipient: editForm.recipient.trim(),
+            date: editForm.date,
+            notes: editForm.notes,
+          },
+          adminActor
+        );
+      } else if (editingRecord.type === 'landowner_payment') {
+        let sourceType: FinanceSourceType = 'district';
+        let sourceHandlerId = '';
+        let sourceHandlerName = 'District Committee Account';
+
+        if (editForm.sourceType === 'kuppam_handler') {
+          if (!editForm.sourceHandlerId) {
+            setErrorMessage('Please select the paying custodian.');
+            setIsSubmitting(false);
+            return;
+          }
+          sourceType = 'handler';
+          sourceHandlerId = editForm.sourceHandlerId;
+          const h = handlers.find((x) => x.id === sourceHandlerId);
+          sourceHandlerName = h?.name || 'Custodian';
+        } else if (editForm.sourceType === 'kuppam_main') {
+          sourceType = 'kuppam_main';
+          sourceHandlerName = 'Kuppam Main Treasury';
+        }
+
+        await updateFinanceRecord(
+          editingRecord.id,
+          {
+            amountPaise,
+            sourceType,
+            sourceHandlerId,
+            sourceHandlerName,
+            date: editForm.date,
+            notes: editForm.notes,
+          },
+          adminActor
+        );
+      }
+
+      setSuccessMessage(`Transaction ${editingRecord.recordNumber} updated successfully.`);
+      setEditingRecord(null);
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to update transaction.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Filtered Records
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {
@@ -549,85 +708,109 @@ export default function FinanceManagementPage() {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => setIsHandoverModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 15px',
-              background: '#2563EB',
-              color: '#FFFFFF',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              borderRadius: '8px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowRightLeft size={16} />
-            <span>Handover Funds</span>
-          </button>
+          {isVolunteer && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                background: '#F1F5F9',
+                border: '1px solid #CBD5E1',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#475569',
+              }}
+            >
+              <Lock size={14} color="#64748B" />
+              <span>Read-Only View (Volunteer)</span>
+            </div>
+          )}
 
-          <button
-            onClick={() => setIsExpenseModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 15px',
-              background: '#D97706',
-              color: '#FFFFFF',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              borderRadius: '8px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-              cursor: 'pointer',
-            }}
-          >
-            <Receipt size={16} />
-            <span>Record Expense</span>
-          </button>
+          {!isVolunteer && (
+            <>
+              <button
+                onClick={() => setIsHandoverModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 15px',
+                  background: '#2563EB',
+                  color: '#FFFFFF',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                  cursor: 'pointer',
+                }}
+              >
+                <ArrowRightLeft size={16} />
+                <span>Handover Funds</span>
+              </button>
 
-          <button
-            onClick={() => setIsLandownerModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 15px',
-              background: '#E11D48',
-              color: '#FFFFFF',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              borderRadius: '8px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-              cursor: 'pointer',
-            }}
-          >
-            <Building2 size={16} />
-            <span>Landowner Payment</span>
-          </button>
+              <button
+                onClick={() => setIsExpenseModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 15px',
+                  background: '#D97706',
+                  color: '#FFFFFF',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Receipt size={16} />
+                <span>Record Expense</span>
+              </button>
 
-          <button
-            onClick={() => setIsHandlerModalOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '9px 15px',
-              background: '#1E293B',
-              color: '#FFFFFF',
-              fontSize: '0.84rem',
-              fontWeight: 700,
-              borderRadius: '8px',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-              cursor: 'pointer',
-            }}
-          >
-            <Plus size={16} />
-            <span>Add Custodian</span>
-          </button>
+              <button
+                onClick={() => setIsLandownerModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 15px',
+                  background: '#E11D48',
+                  color: '#FFFFFF',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Building2 size={16} />
+                <span>Landowner Payment</span>
+              </button>
+
+              <button
+                onClick={() => setIsHandlerModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '9px 15px',
+                  background: '#1E293B',
+                  color: '#FFFFFF',
+                  fontSize: '0.84rem',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Plus size={16} />
+                <span>Add Custodian</span>
+              </button>
+            </>
+          )}
 
           <button
             onClick={handleDownloadPDF}
@@ -1105,46 +1288,48 @@ export default function FinanceManagementPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => {
-                    setExpenseForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
-                    setIsExpenseModalOpen(true);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '9px 12px',
-                    background: '#F1F5F9',
-                    color: '#334155',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                  }}
-                >
-                  + Record Expense
-                </button>
-                <button
-                  onClick={() => {
-                    setLandownerForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
-                    setIsLandownerModalOpen(true);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '9px 12px',
-                    background: '#FFE4E6',
-                    color: '#9F1239',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                  }}
-                >
-                  + Landowner Payment
-                </button>
-              </div>
+              {!isVolunteer && (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      setExpenseForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
+                      setIsExpenseModalOpen(true);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      background: '#F1F5F9',
+                      color: '#334155',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    + Record Expense
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLandownerForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
+                      setIsLandownerModalOpen(true);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      background: '#FFE4E6',
+                      color: '#9F1239',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    + Landowner Payment
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* KUPPAM COMMITTEE MAIN TREASURY CARD */}
@@ -1257,22 +1442,24 @@ export default function FinanceManagementPage() {
               </div>
 
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setIsHandoverModalOpen(true)}
-                  style={{
-                    flex: 1,
-                    padding: '9px 12px',
-                    background: '#2563EB',
-                    color: '#FFFFFF',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                  }}
-                >
-                  Handover Funds
-                </button>
+                {!isVolunteer && (
+                  <button
+                    onClick={() => setIsHandoverModalOpen(true)}
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      background: '#2563EB',
+                      color: '#FFFFFF',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Handover Funds
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab('kuppam')}
                   style={{
@@ -1319,24 +1506,26 @@ export default function FinanceManagementPage() {
                   Authorized committee members and accounts holding project funds
                 </p>
               </div>
-              <button
-                onClick={() => setIsHandlerModalOpen(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  color: '#065F46',
-                  background: '#ECFDF5',
-                  padding: '7px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #A7F3D0',
-                  cursor: 'pointer',
-                }}
-              >
-                <Plus size={14} /> Add Custodian
-              </button>
+              {!isVolunteer && (
+                <button
+                  onClick={() => setIsHandlerModalOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    color: '#065F46',
+                    background: '#ECFDF5',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid #A7F3D0',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={14} /> Add Custodian
+                </button>
+              )}
             </div>
 
             {handlers.length === 0 ? (
@@ -1355,20 +1544,22 @@ export default function FinanceManagementPage() {
                 <p style={{ fontSize: '0.78rem', color: '#94A3B8', marginTop: '4px', marginBottom: '14px' }}>
                   Add authorized committee members or accounts holding funds (e.g. Mansoor, Bank)
                 </p>
-                <button
-                  onClick={() => setIsHandlerModalOpen(true)}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#059669',
-                    color: '#FFFFFF',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  + Add Custodian
-                </button>
+                {!isVolunteer && (
+                  <button
+                    onClick={() => setIsHandlerModalOpen(true)}
+                    style={{
+                      padding: '8px 16px',
+                      background: '#059669',
+                      color: '#FFFFFF',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    + Add Custodian
+                  </button>
+                )}
               </div>
             ) : (
               <div
@@ -1522,36 +1713,38 @@ export default function FinanceManagementPage() {
                 Individual custody holdings, disbursements, and active balances.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setIsHandlerModalOpen(true)}
-                style={{
-                  padding: '8px 14px',
-                  background: '#0F766E',
-                  color: '#FFFFFF',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                + Add Custodian
-              </button>
-              <button
-                onClick={() => setIsHandoverModalOpen(true)}
-                style={{
-                  padding: '8px 14px',
-                  background: '#2563EB',
-                  color: '#FFFFFF',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                Handover Funds
-              </button>
-            </div>
+            {!isVolunteer && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setIsHandlerModalOpen(true)}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#0F766E',
+                    color: '#FFFFFF',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Add Custodian
+                </button>
+                <button
+                  onClick={() => setIsHandoverModalOpen(true)}
+                  style={{
+                    padding: '8px 14px',
+                    background: '#2563EB',
+                    color: '#FFFFFF',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Handover Funds
+                </button>
+              </div>
+            )}
           </div>
 
           {/* List of Handlers Grid */}
@@ -1678,50 +1871,52 @@ export default function FinanceManagementPage() {
                     </p>
                   )}
 
-                  <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid #F1F5F9' }}>
-                    <button
-                      onClick={() => {
-                        setHandoverForm((prev) => ({ ...prev, targetHandlerId: h.id }));
-                        setIsHandoverModalOpen(true);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        background: '#2563EB',
-                        color: '#FFFFFF',
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                      }}
-                    >
-                      + Handover
-                    </button>
-                    <button
-                      onClick={() => {
-                        setExpenseForm((prev) => ({
-                          ...prev,
-                          sourceType: 'kuppam_handler',
-                          sourceHandlerId: h.id,
-                        }));
-                        setIsExpenseModalOpen(true);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        background: '#D97706',
-                        color: '#FFFFFF',
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                      }}
-                    >
-                      + Expense
-                    </button>
-                  </div>
+                  {!isVolunteer && (
+                    <div style={{ display: 'flex', gap: '8px', paddingTop: '8px', borderTop: '1px solid #F1F5F9' }}>
+                      <button
+                        onClick={() => {
+                          setHandoverForm((prev) => ({ ...prev, targetHandlerId: h.id }));
+                          setIsHandoverModalOpen(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#2563EB',
+                          color: '#FFFFFF',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                        }}
+                      >
+                        + Handover
+                      </button>
+                      <button
+                        onClick={() => {
+                          setExpenseForm((prev) => ({
+                            ...prev,
+                            sourceType: 'kuppam_handler',
+                            sourceHandlerId: h.id,
+                          }));
+                          setIsExpenseModalOpen(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#D97706',
+                          color: '#FFFFFF',
+                          fontSize: '0.76rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                        }}
+                      >
+                        + Expense
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1863,42 +2058,44 @@ export default function FinanceManagementPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => {
-                  setExpenseForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
-                  setIsExpenseModalOpen(true);
-                }}
-                style={{
-                  padding: '9px 16px',
-                  background: '#D97706',
-                  color: '#FFFFFF',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                + Record District Expense
-              </button>
-              <button
-                onClick={() => {
-                  setLandownerForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
-                  setIsLandownerModalOpen(true);
-                }}
-                style={{
-                  padding: '9px 16px',
-                  background: '#E11D48',
-                  color: '#FFFFFF',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                + Landowner Payment
-              </button>
-            </div>
+            {!isVolunteer && (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => {
+                    setExpenseForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
+                    setIsExpenseModalOpen(true);
+                  }}
+                  style={{
+                    padding: '9px 16px',
+                    background: '#D97706',
+                    color: '#FFFFFF',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Record District Expense
+                </button>
+                <button
+                  onClick={() => {
+                    setLandownerForm((prev) => ({ ...prev, sourceType: 'district', sourceHandlerId: '' }));
+                    setIsLandownerModalOpen(true);
+                  }}
+                  style={{
+                    padding: '9px 16px',
+                    background: '#E11D48',
+                    color: '#FFFFFF',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Landowner Payment
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2044,13 +2241,13 @@ export default function FinanceManagementPage() {
                   <th style={{ padding: '12px 16px' }}>Source Account</th>
                   <th style={{ padding: '12px 16px' }}>Recipient / To</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right' }}>Amount</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center' }}>Action</th>
+                  {!isVolunteer && <th style={{ padding: '12px 16px', textAlign: 'center' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {filteredRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8' }}>
+                    <td colSpan={isVolunteer ? 6 : 7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8' }}>
                       No financial transactions found
                     </td>
                   </tr>
@@ -2165,28 +2362,59 @@ export default function FinanceManagementPage() {
                           </span>
                         </td>
 
-                        <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          {!isCancelled ? (
-                            <button
-                              onClick={() => {
-                                setCancellingRecord(r);
-                                setCancelReason('');
-                              }}
-                              title="Cancel this transaction"
-                              style={{
-                                padding: '5px',
-                                color: '#DC2626',
-                                background: '#FEE2E2',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.72rem', color: '#DC2626', fontStyle: 'italic' }}>Cancelled</span>
-                          )}
-                        </td>
+                        {!isVolunteer && (
+                          <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            {!isCancelled ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  onClick={() => handleOpenEditRecord(r)}
+                                  title="Edit this transaction"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '5px 9px',
+                                    color: '#2563EB',
+                                    background: '#EFF6FF',
+                                    border: '1px solid #BFDBFE',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <Pencil size={12} />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setCancellingRecord(r);
+                                    setCancelReason('');
+                                  }}
+                                  title="Cancel this transaction"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '5px 9px',
+                                    color: '#DC2626',
+                                    background: '#FEF2F2',
+                                    border: '1px solid #FECACA',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <Trash2 size={12} />
+                                  <span>Cancel</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', color: '#DC2626', fontStyle: 'italic', fontWeight: 600 }}>Cancelled</span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -3174,6 +3402,518 @@ export default function FinanceManagementPage() {
                 {isSubmitting ? 'Cancelling...' : 'Confirm Cancellation'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: EDIT TRANSACTION */}
+      {editingRecord && !isVolunteer && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(3px)',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '460px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid #F1F5F9',
+                paddingBottom: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                    Edit Transaction
+                  </h3>
+                  <span
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      background:
+                        editingRecord.type === 'handover'
+                          ? '#DBEAFE'
+                          : editingRecord.type === 'expense'
+                          ? '#FEF3C7'
+                          : '#FFE4E6',
+                      color:
+                        editingRecord.type === 'handover'
+                          ? '#1E40AF'
+                          : editingRecord.type === 'expense'
+                          ? '#B45309'
+                          : '#9F1239',
+                    }}
+                  >
+                    {editingRecord.type === 'handover'
+                      ? 'Handover'
+                      : editingRecord.type === 'expense'
+                      ? 'Expense'
+                      : 'Landowner Payment'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#64748B', fontFamily: 'monospace', marginTop: '2px' }}>
+                  Ref: {editingRecord.recordNumber}
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingRecord(null)}
+                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditRecord} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Type: HANDOVER */}
+              {editingRecord.type === 'handover' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Recipient Custodian *
+                    </label>
+                    <select
+                      required
+                      value={editForm.targetHandlerId}
+                      onChange={(e) => setEditForm({ ...editForm, targetHandlerId: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <option value="">Select custodian...</option>
+                      {handlers.map((h) => (
+                        <option key={h.id} value={h.id}>
+                          {h.name} ({h.role || 'Member'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Handover Amount (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="e.g. 50000"
+                      value={editForm.amountRupees}
+                      onChange={(e) => setEditForm({ ...editForm, amountRupees: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '1rem',
+                        fontWeight: 800,
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Purpose / Notes
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Purpose of funds handover..."
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Type: EXPENSE */}
+              {editingRecord.type === 'expense' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Paid From (Source Account) *
+                    </label>
+                    <select
+                      value={editForm.sourceType}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          sourceType: e.target.value as 'district' | 'kuppam_handler' | 'kuppam_main',
+                        })
+                      }
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        marginBottom: editForm.sourceType === 'kuppam_handler' ? '8px' : '0',
+                      }}
+                    >
+                      <option value="kuppam_handler">👤 Kuppam Custodian — In-Hand Fund</option>
+                      <option value="district">🏛️ District Committee Account</option>
+                      <option value="kuppam_main">🏢 Kuppam Main Treasury</option>
+                    </select>
+
+                    {editForm.sourceType === 'kuppam_handler' && (
+                      <select
+                        required
+                        value={editForm.sourceHandlerId}
+                        onChange={(e) => setEditForm({ ...editForm, sourceHandlerId: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '7px 10px',
+                          fontSize: '0.82rem',
+                          border: '1px solid #F59E0B',
+                          borderRadius: '8px',
+                          background: '#FFFBEB',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">Select paying custodian...</option>
+                        {handlers.map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Purpose / Description *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Expense description..."
+                      value={editForm.title}
+                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Amount (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        placeholder="10000"
+                        value={editForm.amountRupees}
+                        onChange={(e) => setEditForm({ ...editForm, amountRupees: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: '1rem',
+                          fontWeight: 800,
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Category
+                      </label>
+                      <select
+                        value={editForm.category}
+                        onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: '0.88rem',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="printing">Printing</option>
+                        <option value="documentation">Documentation</option>
+                        <option value="travel">Travel Allowance</option>
+                        <option value="office">Office & Admin</option>
+                        <option value="other">Other Expenses</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={editForm.date}
+                        onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: '0.88rem',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        Recipient / Vendor
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Vendor name"
+                        value={editForm.recipient}
+                        onChange={(e) => setEditForm({ ...editForm, recipient: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          fontSize: '0.88rem',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Notes / Bill Reference
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Invoice number or notes..."
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Type: LANDOWNER PAYMENT */}
+              {editingRecord.type === 'landowner_payment' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Paid From (Source Account) *
+                    </label>
+                    <select
+                      value={editForm.sourceType}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          sourceType: e.target.value as 'district' | 'kuppam_handler' | 'kuppam_main',
+                        })
+                      }
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        marginBottom: editForm.sourceType === 'kuppam_handler' ? '8px' : '0',
+                      }}
+                    >
+                      <option value="district">🏛️ District Committee Account</option>
+                      <option value="kuppam_handler">👤 Kuppam Custodian In-Hand Fund</option>
+                      <option value="kuppam_main">🏢 Kuppam Main Treasury</option>
+                    </select>
+
+                    {editForm.sourceType === 'kuppam_handler' && (
+                      <select
+                        required
+                        value={editForm.sourceHandlerId}
+                        onChange={(e) => setEditForm({ ...editForm, sourceHandlerId: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '7px 10px',
+                          fontSize: '0.82rem',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">Select custodian...</option>
+                        {handlers.map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Disbursement Amount (₹) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1"
+                      placeholder="Payment amount"
+                      value={editForm.amountRupees}
+                      onChange={(e) => setEditForm({ ...editForm, amountRupees: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '1rem',
+                        fontWeight: 800,
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editForm.date}
+                      onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      Notes / Agreement Reference
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Receipt number or deed agreement notes..."
+                      value={editForm.notes}
+                      onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: 'flex', gap: '8px', paddingTop: '10px', borderTop: '1px solid #F1F5F9' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingRecord(null)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#F1F5F9',
+                    color: '#334155',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#2563EB',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    fontSize: '0.84rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    opacity: isSubmitting ? 0.6 : 1,
+                  }}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -32,6 +32,9 @@ export interface FinanceRecord {
   createdByUid: string;
   createdByName: string;
   createdAt?: any;
+  updatedByUid?: string;
+  updatedByName?: string;
+  updatedAt?: any;
 }
 
 export interface FinanceLiveSummary {
