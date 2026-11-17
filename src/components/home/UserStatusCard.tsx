@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useUserSession } from '@/lib/state/userSession';
 import { formatINR } from '@/lib/calculations/currency';
-import { Handshake, CheckCircle2, Hourglass } from 'lucide-react';
+import { Handshake, CheckCircle2, Hourglass, Coins, Receipt, ArrowRight } from 'lucide-react';
 import { fetchUserContributionsFromFirebase } from '@/lib/firebase/db';
 
 const BANNER_IMAGES = [
@@ -113,11 +113,11 @@ export function YourStatusCard() {
 
   useEffect(() => {
     try {
-      const cleanSessionPhone = (session.phone || '').replace(/\D/g, '').slice(-10);
+      const rawPhone = (session.phone || '').trim();
 
-      if (cleanSessionPhone) {
-        // Authoritative live fetch from Firestore
-        fetchUserContributionsFromFirebase(cleanSessionPhone)
+      if (rawPhone) {
+        // Authoritative live fetch from Firestore with phone variant normalization
+        fetchUserContributionsFromFirebase(rawPhone)
           .then(({ offers, cashList }) => {
             const remoteOfferTotal = (offers || []).reduce(
               (sum: number, o: any) => sum + (Number(o.totalOfferedPaise) || 0),
@@ -145,6 +145,8 @@ export function YourStatusCard() {
 
   const remainingAmount = Math.max(0, offerAmount - paidAmount);
   const userName = session.name || 'Donor Profile';
+  const isDirectCashOnly = offerAmount === 0 && paidAmount > 0;
+  const isFullyPaid = offerAmount > 0 && remainingAmount === 0;
 
   const whatsappMessage = `അസ്സലാമു അലൈക്കും. സലഫി മസ്ജിദ് കുപ്പം ഫണ്ട് റെയ്സിംഗിലേക്ക് ഞാൻ നൽകാൻ ബാക്കിയുള്ള തുക (₹${remainingAmount.toLocaleString('en-IN')}) നൽകാൻ ആഗ്രഹിക്കുന്നു.\nപേര്: ${userName}\nഫോൺ: ${session.phone ? `+91 ${session.phone}` : 'ലഭ്യമല്ല'}`;
   const whatsappUrl = `https://wa.me/919947748552?text=${encodeURIComponent(whatsappMessage)}`;
@@ -174,13 +176,13 @@ export function YourStatusCard() {
         </span>
       </div>
 
-      {/* White Pill Cards Grid matching Screenshot */}
+      {/* White Pill Cards Grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
         gap: '10px',
       }}>
-        {/* Card 1: Offer Amount */}
+        {/* Card 1 */}
         <div style={{
           background: '#FFFFFF',
           borderRadius: '16px',
@@ -194,26 +196,26 @@ export function YourStatusCard() {
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: '#10B981',
+            background: isDirectCashOnly ? '#0D9488' : '#10B981',
             color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <Handshake size={20} />
+            {isDirectCashOnly ? <Coins size={20} /> : <Handshake size={20} />}
           </div>
           <div>
             <span style={{ fontSize: '0.7rem', color: '#64748B', display: 'block', lineHeight: 1.1 }}>
-              Offer Amount
+              {isDirectCashOnly ? 'Contribution' : 'Offer Amount'}
             </span>
             <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(0.92rem, 3.2vw, 1.15rem)', color: '#0F172A', fontWeight: 800 }}>
-              {formatINR(offerAmount)}
+              {isDirectCashOnly ? 'Direct Cash' : formatINR(offerAmount)}
             </strong>
           </div>
         </div>
 
-        {/* Card 2: Paid (Cash) */}
+        {/* Card 2 */}
         <div style={{
           background: '#FFFFFF',
           borderRadius: '16px',
@@ -227,7 +229,7 @@ export function YourStatusCard() {
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            background: '#EC4899',
+            background: '#16A34A',
             color: '#FFFFFF',
             display: 'flex',
             alignItems: 'center',
@@ -238,7 +240,7 @@ export function YourStatusCard() {
           </div>
           <div>
             <span style={{ fontSize: '0.7rem', color: '#64748B', display: 'block', lineHeight: 1.1 }}>
-              Paid (Cash)
+              {isDirectCashOnly ? 'Total Paid' : 'Paid (Cash)'}
             </span>
             <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(0.92rem, 3.2vw, 1.15rem)', color: '#16A34A', fontWeight: 800 }}>
               {formatINR(paidAmount)}
@@ -246,7 +248,7 @@ export function YourStatusCard() {
           </div>
         </div>
 
-        {/* Card 3: Remaining Amount (Spans across both columns with Pay Now button) */}
+        {/* Card 3: Action & Status Row */}
         <div style={{
           gridColumn: 'span 2',
           background: '#FFFFFF',
@@ -264,56 +266,122 @@ export function YourStatusCard() {
               width: '36px',
               height: '36px',
               borderRadius: '10px',
-              background: '#06B6D4',
+              background: isDirectCashOnly ? '#10B981' : isFullyPaid ? '#16A34A' : '#06B6D4',
               color: '#FFFFFF',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <Hourglass size={18} />
+              {isDirectCashOnly ? <Receipt size={18} /> : isFullyPaid ? <CheckCircle2 size={18} /> : <Hourglass size={18} />}
             </div>
             <div>
               <span style={{ fontSize: '0.72rem', color: '#64748B', display: 'block', lineHeight: 1.1 }}>
-                Remaining Balance
+                {isDirectCashOnly ? 'Cash Contribution Status' : isFullyPaid ? 'Offer Status' : 'Remaining Balance'}
               </span>
-              <span style={{ fontSize: '0.7rem', color: '#94A3B8' }}>
-                ഇനിയും നല്കാൻ ബാക്കിയുള്ള തുക
+              <span style={{ fontSize: '0.7rem', color: isDirectCashOnly ? '#15803D' : isFullyPaid ? '#15803D' : '#94A3B8', fontWeight: 600 }}>
+                {isDirectCashOnly ? 'Verified & Official Receipt Issued' : isFullyPaid ? 'Fully Paid & Completed' : 'ഇനിയും നല്കാൻ ബാക്കിയുള്ള തുക'}
               </span>
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1rem, 3.5vw, 1.25rem)', color: remainingAmount > 0 ? '#DC2626' : '#16A34A', fontWeight: 800 }}>
-              {formatINR(remainingAmount)}
-            </strong>
+            {isDirectCashOnly ? (
+              <Link
+                href="/history"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  background: '#16A34A',
+                  color: '#FFFFFF',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Receipt size={14} />
+                <span>View Receipt</span>
+              </Link>
+            ) : isFullyPaid ? (
+              <Link
+                href="/history"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  background: '#16A34A',
+                  color: '#FFFFFF',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Receipt size={14} />
+                <span>View Receipts</span>
+              </Link>
+            ) : remainingAmount > 0 ? (
+              <>
+                <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(1rem, 3.5vw, 1.25rem)', color: '#DC2626', fontWeight: 800 }}>
+                  {formatINR(remainingAmount)}
+                </strong>
 
-            <a
-              href={whatsappUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '7px 12px',
-                borderRadius: '8px',
-                background: '#16A34A',
-                color: '#FFFFFF',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                textDecoration: 'none',
-                boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease',
-              }}
-              title="Pay now via WhatsApp support"
-            >
-              <span>Pay Now</span>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/>
-              </svg>
-            </a>
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '7px 12px',
+                    borderRadius: '8px',
+                    background: '#16A34A',
+                    color: '#FFFFFF',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Pay now via WhatsApp support"
+                >
+                  <span>Pay Now</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/>
+                  </svg>
+                </a>
+              </>
+            ) : (
+              <Link
+                href="/offer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  background: '#4F46E5',
+                  color: '#FFFFFF',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>Make an Offer</span>
+                <ArrowRight size={14} />
+              </Link>
+            )}
           </div>
         </div>
       </div>

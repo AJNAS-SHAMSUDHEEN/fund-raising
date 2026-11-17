@@ -623,6 +623,35 @@ export async function recordCashToFirebase(cashData: {
   }
 }
 
+/**
+ * Generates phone variants to match records stored with different formats
+ * (e.g. '9847012345', '+919847012345', '919847012345', '09847012345', '+971...')
+ */
+export function getPhoneQueryVariants(rawPhone: string): string[] {
+  const trimmed = (rawPhone || '').trim();
+  if (!trimmed) return [];
+  const digits = trimmed.replace(/\D/g, '');
+  const variants = new Set<string>();
+
+  if (trimmed) variants.add(trimmed);
+  if (digits) variants.add(digits);
+
+  if (digits.length >= 10) {
+    const last10 = digits.slice(-10);
+    variants.add(last10);
+    variants.add(`+91${last10}`);
+    variants.add(`91${last10}`);
+    variants.add(`0${last10}`);
+  }
+
+  if (trimmed.startsWith('+')) {
+    variants.add(trimmed);
+    variants.add(`+${digits}`);
+  }
+
+  return Array.from(variants).filter((v) => v.length >= 7).slice(0, 10);
+}
+
 // 2b. Lookup Donor Profile & Previous Offers by Mobile Number
 export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorHistory> {
   const cleanPhone = phoneInput.replace(/\D/g, '').slice(-10);
@@ -637,13 +666,14 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
     recentCashPayments: [],
   };
 
-  if (!cleanPhone || cleanPhone.length < 7) return result;
+  const variants = getPhoneQueryVariants(phoneInput);
+  if (variants.length === 0) return result;
 
   // 1. Try Firebase query first
   try {
     const offersQ = query(
       collection(db, 'offers'),
-      where('contributorPhone', '==', cleanPhone)
+      where('contributorPhone', 'in', variants)
     );
     const offersSnap = await getDocs(offersQ);
     offersSnap.forEach((docSnap) => {
@@ -674,7 +704,7 @@ export async function getDonorHistoryByPhone(phoneInput: string): Promise<DonorH
 
     const cashQ = query(
       collection(db, 'cashCollections'),
-      where('contributorPhone', '==', cleanPhone)
+      where('contributorPhone', 'in', variants)
     );
     const cashSnap = await getDocs(cashQ);
     cashSnap.forEach((docSnap) => {
@@ -840,18 +870,21 @@ export function subscribeToLiveFeed(
 // 5. Fetch User Contribution History by Phone Number
 export async function fetchUserContributionsFromFirebase(phone: string) {
   try {
-    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    const variants = getPhoneQueryVariants(phone);
+    if (variants.length === 0) {
+      return { offers: [], cashList: [] };
+    }
 
     const offersQuery = query(
       collection(db, 'offers'),
-      where('contributorPhone', '==', cleanPhone)
+      where('contributorPhone', 'in', variants)
     );
     const offersSnapshot = await getDocs(offersQuery);
     const offers = offersSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     const cashQuery = query(
       collection(db, 'cashCollections'),
-      where('contributorPhone', '==', cleanPhone)
+      where('contributorPhone', 'in', variants)
     );
     const cashSnapshot = await getDocs(cashQuery);
     const cashList = cashSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));

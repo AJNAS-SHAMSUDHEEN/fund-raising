@@ -15,7 +15,10 @@ import {
   CheckCircle2,
   Clock,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Coins,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 
 interface UserOfferItem {
@@ -30,12 +33,17 @@ interface UserOfferItem {
 
 interface UserDonationItem {
   id: string;
-  receiptId: string;
+  receiptNumber: string;
   amountPaise: number;
   offerType: string;
   quantity: number;
   date: string;
   method: string;
+  eventName?: string;
+  collectorName?: string;
+  status: string;
+  notes?: string;
+  offerId?: string;
 }
 
 export default function HistoryPage() {
@@ -48,11 +56,10 @@ export default function HistoryPage() {
   // Read stored offers and donations authoritatively from Firestore
   useEffect(() => {
     const rawPhone = (session.phone || '').trim();
-    const cleanSessionPhone = rawPhone.startsWith('+') ? rawPhone : rawPhone.replace(/\D/g, '').slice(-10);
 
-    if (cleanSessionPhone) {
-      // Live sync from Firestore
-      fetchUserContributionsFromFirebase(cleanSessionPhone)
+    if (rawPhone) {
+      // Live sync from Firestore with normalized phone variants
+      fetchUserContributionsFromFirebase(rawPhone)
         .then(({ offers: remoteOffers, cashList: remoteCash }) => {
           if (remoteOffers && remoteOffers.length > 0) {
             const mapped: UserOfferItem[] = remoteOffers.map((ro: any) => ({
@@ -68,17 +75,28 @@ export default function HistoryPage() {
           } else {
             setOffers([]);
           }
+
           if (remoteCash && remoteCash.length > 0) {
             const mappedCash: UserDonationItem[] = remoteCash.map((rc: any) => ({
               id: rc.id,
-              receiptId: rc.receiptNumber || rc.id,
+              receiptNumber: rc.receiptNumber ? String(rc.receiptNumber) : (rc.erNo ? String(rc.erNo) : rc.id),
               amountPaise: Number(rc.amountPaise) || 0,
               offerType: rc.offerType || 'cash',
               quantity: rc.quantity || 1,
-              date: rc.createdAt?.toDate ? rc.createdAt.toDate().toLocaleDateString('en-IN') : 'Recent',
-              method: 'CASH',
+              date: rc.createdAt?.toDate ? rc.createdAt.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recent',
+              method: 'Cash',
+              eventName: rc.eventName || '',
+              collectorName: rc.collectorName || '',
+              status: rc.status || 'verified',
+              notes: rc.notes || '',
+              offerId: rc.offerId || '',
             }));
             setDonations(mappedCash);
+
+            // If user has direct cash contributions but no offers, default to donations tab
+            if ((!remoteOffers || remoteOffers.length === 0) && mappedCash.length > 0) {
+              setActiveTab('donations');
+            }
           } else {
             setDonations([]);
           }
@@ -115,13 +133,14 @@ export default function HistoryPage() {
           )}
         </div>
 
-        {/* Tab Selection matching Screenshot 2 */}
+        {/* Tab Selection */}
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          gap: '32px',
+          gap: '20px',
           borderBottom: '2px solid var(--border-light)',
           marginBottom: '28px',
+          flexWrap: 'wrap',
         }}>
           {/* Donations Tab */}
           <button
@@ -135,9 +154,29 @@ export default function HistoryPage() {
               borderBottom: activeTab === 'donations' ? '3px solid var(--brand-700)' : '3px solid transparent',
               marginBottom: '-2px',
               transition: 'all 0.2s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
             }}
           >
-            Donations
+            <span>Direct Cash Donations</span>
+            {donations.length > 0 && (
+              <span
+                style={{
+                  padding: '2px 8px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  borderRadius: '12px',
+                  background: activeTab === 'donations' ? '#DCFCE7' : '#F1F5F9',
+                  color: activeTab === 'donations' ? '#15803D' : '#64748B',
+                }}
+              >
+                {donations.length}
+              </span>
+            )}
           </button>
 
           {/* Offers Tab */}
@@ -152,9 +191,29 @@ export default function HistoryPage() {
               borderBottom: activeTab === 'offers' ? '3px solid var(--brand-700)' : '3px solid transparent',
               marginBottom: '-2px',
               transition: 'all 0.2s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
             }}
           >
-            Offers
+            <span>Pledged Offers</span>
+            {offers.length > 0 && (
+              <span
+                style={{
+                  padding: '2px 8px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  borderRadius: '12px',
+                  background: activeTab === 'offers' ? 'var(--brand-100)' : '#F1F5F9',
+                  color: activeTab === 'offers' ? 'var(--brand-800)' : '#64748B',
+                }}
+              >
+                {offers.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -365,64 +424,179 @@ export default function HistoryPage() {
               </div>
             )
           ) : (
-            /* Donations Tab View */
+            /* Donations Tab View (Direct Cash Contributions) */
             donations.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {donations.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      borderRadius: '16px',
-                      border: '1.5px solid var(--border-light)',
-                      padding: '18px 20px',
-                      background: 'var(--bg-base)',
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '14px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '12px',
-                        background: '#DCFCE7',
-                        color: '#15803D',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        <CheckCircle2 size={24} />
-                      </div>
-                      <div>
-                        <div style={{
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '1.3rem',
-                          fontWeight: 800,
-                          color: 'var(--brand-900)',
-                        }}>
-                          {formatINRFromPaise(item.amountPaise)}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {item.date} • Paid via {item.method}
-                        </div>
-                      </div>
-                    </div>
+                {donations.map((item) => {
+                  const receiptTarget = item.receiptNumber || item.id;
+                  const isOfferPayment = Boolean(item.offerId && item.offerType !== 'cash');
+                  const itemTitle = isOfferPayment
+                    ? `${item.quantity} ${item.offerType.toUpperCase()} Pledged Offer Payment`
+                    : 'Direct Cash Contribution';
+                  const receiptUrl = `/receipt/${receiptTarget}?donor=${encodeURIComponent(session.name || 'Contributor')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}&status=verified&purpose=${encodeURIComponent('Salafi Masjid Land Acquisition Fund — Direct Cash Contribution')}`;
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Link
-                        href={`/receipt/${item.receiptId}?donor=${encodeURIComponent(session.name || 'Contributor')}&phone=${encodeURIComponent(session.phone || '')}&amount=${item.amountPaise}&type=${item.offerType}&qty=${item.quantity}`}
-                        className="btn btn-outline"
-                        style={{ padding: '8px 16px', fontSize: '0.85rem', gap: '6px' }}
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        borderRadius: '16px',
+                        border: '1.5px solid #BBF7D0',
+                        background: '#FFFFFF',
+                        boxShadow: '0 4px 16px rgba(22, 163, 74, 0.05)',
+                        overflow: 'hidden',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      }}
+                    >
+                      {/* Card Header Bar */}
+                      <div
+                        style={{
+                          background: 'linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)',
+                          padding: '14px 18px',
+                          borderBottom: '1px solid #BBF7D0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          flexWrap: 'wrap',
+                        }}
                       >
-                        <Receipt size={16} />
-                        <span>View Receipt</span>
-                      </Link>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '10px',
+                              background: '#16A34A',
+                              color: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Coins size={18} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.98rem', color: '#14532D' }}>
+                              {itemTitle}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: '#166534' }}>
+                              Receipt No: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>ER-{item.receiptNumber.replace(/^ER-?/i, '')}</span> • {item.date}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status Badges */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              background: '#16A34A',
+                              color: '#FFFFFF',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                            }}
+                          >
+                            <CheckCircle2 size={12} />
+                            <span>Verified / Received</span>
+                          </span>
+
+                          <span
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              background: '#E2E8F0',
+                              color: '#334155',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            Cash
+                          </span>
+
+                          {item.eventName && (
+                            <span
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '20px',
+                                background: '#FEF3C7',
+                                color: '#92400E',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                              }}
+                            >
+                              {item.eventName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card Content & Details */}
+                      <div
+                        style={{
+                          padding: '16px 18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '16px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '0.75rem', color: '#64748B', display: 'block', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                            Contributed Amount
+                          </span>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-display)',
+                              fontSize: '1.45rem',
+                              fontWeight: 800,
+                              color: '#15803D',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {formatINRFromPaise(item.amountPaise)}
+                          </div>
+                          {item.collectorName && (
+                            <div style={{ fontSize: '0.76rem', color: '#64748B', marginTop: '4px' }}>
+                              Received by: <span style={{ fontWeight: 600, color: '#334155' }}>{item.collectorName}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <Link
+                            href={receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '10px 18px',
+                              fontSize: '0.85rem',
+                              fontWeight: 700,
+                              borderRadius: '10px',
+                              background: '#16A34A',
+                              color: '#FFFFFF',
+                              textDecoration: 'none',
+                              boxShadow: '0 2px 6px rgba(22, 163, 74, 0.25)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <Receipt size={16} />
+                            <span>View & Download Receipt</span>
+                          </Link>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               /* Empty Donations State */
@@ -431,29 +605,41 @@ export default function HistoryPage() {
                   width: '64px',
                   height: '64px',
                   borderRadius: '50%',
-                  background: '#FEE2E2',
-                  color: '#DC2626',
+                  background: '#DCFCE7',
+                  color: '#16A34A',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   margin: '0 auto 16px',
                 }}>
-                  <Heart size={32} />
+                  <Coins size={32} />
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-900)', marginBottom: '8px' }}>
-                  No Donation History
+                  No Direct Cash Donations Yet
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
-                  You haven&apos;t made any donations yet. Contribute towards the masjid to view your verified receipts.
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', maxWidth: '420px', margin: '0 auto 24px' }}>
+                  Direct cash payments given to the committee under your mobile number will appear here with official receipts once entered and verified.
                 </p>
 
-                <Link
-                  href="/offer?mode=donate"
-                  className="btn btn-primary"
-                  style={{ padding: '12px 24px', fontWeight: 700, borderRadius: '12px' }}
-                >
-                  Donate via UPI
-                </Link>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <Link
+                    href="/offer?mode=offer"
+                    className="btn btn-primary"
+                    style={{ padding: '12px 24px', fontWeight: 700, borderRadius: '12px', gap: '8px' }}
+                  >
+                    <Handshake size={18} />
+                    <span>Make an Offer</span>
+                  </Link>
+
+                  <Link
+                    href="/"
+                    className="btn btn-outline"
+                    style={{ padding: '12px 20px', borderRadius: '12px', gap: '8px' }}
+                  >
+                    <ArrowLeft size={16} />
+                    <span>Back to Home</span>
+                  </Link>
+                </div>
               </div>
             )
           )}

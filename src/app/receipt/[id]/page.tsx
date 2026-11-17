@@ -253,7 +253,8 @@ export default function ReceiptPage() {
       : offerType === 'cent' ? `Salafi Masjid Land Acquisition Fund (${quantity} Cent Sponsorship)`
         : offerType === 'musalla' ? `Salafi Masjid Land Acquisition Fund (${quantity} Musalla Prayer Space)`
           : offerType === 'sqft' ? `Salafi Masjid Land Acquisition Fund (${quantity} Sq Ft Sponsorship)`
-            : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
+            : offerType === 'cash' ? 'Salafi Masjid Land Acquisition Fund — Direct Cash Contribution'
+              : 'Salafi Masjid Land Acquisition Fund — Salafi Center Kuppam');
 
   const [origin, setOrigin] = useState('https://kuppam-collection.vercel.app');
   useEffect(() => {
