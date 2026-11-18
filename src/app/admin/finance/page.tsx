@@ -76,6 +76,8 @@ export default function FinanceManagementPage() {
   // Form states
   const [handlerForm, setHandlerForm] = useState({ name: '', phone: '', role: 'Committee Member', notes: '' });
   const [handoverForm, setHandoverForm] = useState({
+    sourceType: 'kuppam_main' as 'kuppam_main' | 'kuppam_handler' | 'district',
+    sourceHandlerId: '',
     targetHandlerId: '',
     amountRupees: '',
     date: new Date().toISOString().split('T')[0],
@@ -180,6 +182,7 @@ export default function FinanceManagementPage() {
     const handlerStats: {
       [id: string]: {
         receivedPaise: number;
+        handedOutPaise: number;
         expensesPaise: number;
         landownerPaise: number;
         balancePaise: number;
@@ -187,10 +190,11 @@ export default function FinanceManagementPage() {
     } = {};
 
     handlers.forEach((h) => {
-      handlerStats[h.id] = { receivedPaise: 0, expensesPaise: 0, landownerPaise: 0, balancePaise: 0 };
+      handlerStats[h.id] = { receivedPaise: 0, handedOutPaise: 0, expensesPaise: 0, landownerPaise: 0, balancePaise: 0 };
     });
 
     let totalHandedOverToHandlersPaise = 0;
+    let districtHandoversPaise = 0;
     let totalExpensesPaise = 0;
     let totalLandownerPaidPaise = 0;
 
@@ -201,7 +205,17 @@ export default function FinanceManagementPage() {
         if (r.targetHandlerId && handlerStats[r.targetHandlerId]) {
           handlerStats[r.targetHandlerId].receivedPaise += amt;
         }
-        totalHandedOverToHandlersPaise += amt;
+
+        if (r.sourceType === 'handler' && r.sourceHandlerId && handlerStats[r.sourceHandlerId]) {
+          // Handover from Custodian A -> Custodian B
+          handlerStats[r.sourceHandlerId].handedOutPaise += amt;
+        } else if (r.sourceType === 'district') {
+          // Handover from District -> Custodian
+          districtHandoversPaise += amt;
+        } else {
+          // Default: from Kuppam Main Treasury -> Custodian
+          totalHandedOverToHandlersPaise += amt;
+        }
       } else if (r.type === 'expense') {
         totalExpensesPaise += amt;
         if (r.sourceType === 'district') {
@@ -227,12 +241,12 @@ export default function FinanceManagementPage() {
     handlers.forEach((h) => {
       const stat = handlerStats[h.id];
       if (stat) {
-        stat.balancePaise = stat.receivedPaise - stat.expensesPaise - stat.landownerPaise;
+        stat.balancePaise = stat.receivedPaise - stat.handedOutPaise - stat.expensesPaise - stat.landownerPaise;
         totalBalanceHeldByHandlersPaise += stat.balancePaise;
       }
     });
 
-    const districtBalancePaise = districtCollectedPaise - districtExpensesPaise - districtLandownerPaise;
+    const districtBalancePaise = districtCollectedPaise - districtExpensesPaise - districtLandownerPaise - districtHandoversPaise;
 
     const kuppamMainBalancePaise =
       kuppamCollectedPaise -
@@ -289,25 +303,61 @@ export default function FinanceManagementPage() {
       return;
     }
     if (!handoverForm.targetHandlerId) {
-      setErrorMessage('Please select a recipient custodian.');
+      setErrorMessage('Please select a recipient custodian (Person B).');
       return;
     }
 
+    let sourceType: FinanceSourceType = 'kuppam_main';
+    let sourceHandlerId = '';
+    let sourceHandlerName = 'Kuppam Main Treasury';
+
+    if (handoverForm.sourceType === 'district') {
+      sourceType = 'district';
+      sourceHandlerName = 'District Committee Account';
+    } else if (handoverForm.sourceType === 'kuppam_handler') {
+      if (!handoverForm.sourceHandlerId) {
+        setErrorMessage('Please select the source custodian (Person A).');
+        return;
+      }
+      if (handoverForm.sourceHandlerId === handoverForm.targetHandlerId) {
+        setErrorMessage('Source and recipient cannot be the same person.');
+        return;
+      }
+      sourceType = 'handler';
+      sourceHandlerId = handoverForm.sourceHandlerId;
+      const sh = handlers.find((h) => h.id === sourceHandlerId);
+      sourceHandlerName = sh ? sh.name : 'Custodian';
+    }
+
     const targetHandler = handlers.find((h) => h.id === handoverForm.targetHandlerId);
+    const targetHandlerName = targetHandler?.name || 'Custodian';
+
+    const handoverTitle =
+      sourceType === 'handler'
+        ? `Funds Handed over from ${sourceHandlerName} to ${targetHandlerName}`
+        : sourceType === 'district'
+        ? `District Funds Handed over to ${targetHandlerName}`
+        : `Funds Handed over to ${targetHandlerName}`;
 
     try {
       setIsSubmitting(true);
       await recordMoneyHandover({
         amountPaise: Math.round(numAmt * 100),
+        sourceType,
+        sourceHandlerId,
+        sourceHandlerName,
         targetHandlerId: handoverForm.targetHandlerId,
-        targetHandlerName: targetHandler?.name || 'Custodian',
+        targetHandlerName,
+        title: handoverTitle,
         date: handoverForm.date,
         notes: handoverForm.notes,
         createdByUid: adminUser?.uid || 'admin',
         createdByName: adminUser?.name || 'Administrator',
       });
-      setSuccessMessage(`₹${numAmt.toLocaleString('en-IN')} handed over to ${targetHandler?.name}`);
+      setSuccessMessage(`₹${numAmt.toLocaleString('en-IN')} handed over from ${sourceHandlerName} to ${targetHandlerName}`);
       setHandoverForm({
+        sourceType: 'kuppam_main',
+        sourceHandlerId: '',
         targetHandlerId: '',
         amountRupees: '',
         date: new Date().toISOString().split('T')[0],
@@ -507,17 +557,52 @@ export default function FinanceManagementPage() {
           setIsSubmitting(false);
           return;
         }
+
+        let sourceType: FinanceSourceType = 'kuppam_main';
+        let sourceHandlerId = '';
+        let sourceHandlerName = 'Kuppam Main Treasury';
+
+        if (editForm.sourceType === 'district') {
+          sourceType = 'district';
+          sourceHandlerName = 'District Committee Account';
+        } else if (editForm.sourceType === 'kuppam_handler') {
+          if (!editForm.sourceHandlerId) {
+            setErrorMessage('Please select the source custodian (Person A).');
+            setIsSubmitting(false);
+            return;
+          }
+          if (editForm.sourceHandlerId === editForm.targetHandlerId) {
+            setErrorMessage('Source and recipient cannot be the same person.');
+            setIsSubmitting(false);
+            return;
+          }
+          sourceType = 'handler';
+          sourceHandlerId = editForm.sourceHandlerId;
+          const sh = handlers.find((h) => h.id === sourceHandlerId);
+          sourceHandlerName = sh ? sh.name : 'Custodian';
+        }
+
         const targetHandler = handlers.find((h) => h.id === editForm.targetHandlerId);
         const targetHandlerName = targetHandler ? targetHandler.name : 'Custodian';
+
+        const handoverTitle =
+          sourceType === 'handler'
+            ? `Funds Handed over from ${sourceHandlerName} to ${targetHandlerName}`
+            : sourceType === 'district'
+            ? `District Funds Handed over to ${targetHandlerName}`
+            : `Funds Handed over to ${targetHandlerName}`;
 
         await updateFinanceRecord(
           editingRecord.id,
           {
             amountPaise,
             date: editForm.date,
+            sourceType,
+            sourceHandlerId,
+            sourceHandlerName,
             targetHandlerId: editForm.targetHandlerId,
             targetHandlerName,
-            title: `Funds Handed over to ${targetHandlerName}`,
+            title: handoverTitle,
             notes: editForm.notes,
           },
           adminActor
@@ -2624,21 +2709,129 @@ export default function FinanceManagementPage() {
                 marginBottom: '16px',
               }}
             >
-              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
-                Handover Funds from Kuppam Treasury
-              </h3>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#0F172A' }}>
+                  Handover Funds (പണം കൈമാറൽ)
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: '#64748B' }}>
+                  Transfer money between treasury, accounts, or committee members (A to B)
+                </p>
+              </div>
               <button
                 onClick={() => setIsHandoverModalOpen(false)}
-                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px' }}
+                style={{ cursor: 'pointer', color: '#94A3B8', padding: '4px', background: 'transparent', border: 'none' }}
               >
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleRecordHandover} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* 1. FROM: SOURCE */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  1. Handover From (ആരിൽ നിന്ന് / Where From) *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setHandoverForm({ ...handoverForm, sourceType: 'kuppam_main', sourceHandlerId: '' })}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      border: handoverForm.sourceType === 'kuppam_main' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: handoverForm.sourceType === 'kuppam_main' ? '#EFF6FF' : '#FFFFFF',
+                      color: handoverForm.sourceType === 'kuppam_main' ? '#1D4ED8' : '#475569',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Kuppam Treasury
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHandoverForm({ ...handoverForm, sourceType: 'kuppam_handler' })}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      border: handoverForm.sourceType === 'kuppam_handler' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: handoverForm.sourceType === 'kuppam_handler' ? '#EFF6FF' : '#FFFFFF',
+                      color: handoverForm.sourceType === 'kuppam_handler' ? '#1D4ED8' : '#475569',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Person (Custodian)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHandoverForm({ ...handoverForm, sourceType: 'district', sourceHandlerId: '' })}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      borderRadius: '8px',
+                      border: handoverForm.sourceType === 'district' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                      background: handoverForm.sourceType === 'district' ? '#EFF6FF' : '#FFFFFF',
+                      color: handoverForm.sourceType === 'district' ? '#1D4ED8' : '#475569',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                    }}
+                  >
+                    District Fund
+                  </button>
+                </div>
+
+                {handoverForm.sourceType === 'kuppam_main' && (
+                  <div style={{ fontSize: '0.75rem', color: '#15803D', background: '#F0FDF4', padding: '6px 10px', borderRadius: '6px' }}>
+                    Available in Kuppam Treasury: <strong>{formatINR(financeData.kuppamMainBalancePaise)}</strong>
+                  </div>
+                )}
+
+                {handoverForm.sourceType === 'district' && (
+                  <div style={{ fontSize: '0.75rem', color: '#15803D', background: '#F0FDF4', padding: '6px 10px', borderRadius: '6px' }}>
+                    Available in District Account: <strong>{formatINR(financeData.districtBalancePaise)}</strong>
+                  </div>
+                )}
+
+                {handoverForm.sourceType === 'kuppam_handler' && (
+                  <div>
+                    <select
+                      required
+                      value={handoverForm.sourceHandlerId}
+                      onChange={(e) => setHandoverForm({ ...handoverForm, sourceHandlerId: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: '0.88rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        marginTop: '4px',
+                      }}
+                    >
+                      <option value="">Select source person (Person A - ആരിൽ നിന്ന്)...</option>
+                      {handlers.map((h) => {
+                        const stat = financeData.handlerStats[h.id];
+                        const bal = stat ? stat.balancePaise : 0;
+                        return (
+                          <option key={h.id} value={h.id}>
+                            {h.name} ({h.role || 'Member'}) — Balance: {formatINR(bal)}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. TO: RECIPIENT */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                  Recipient Custodian *
+                  2. Handover To (ആർക്ക് നൽകുന്നു - Recipient Person B) *
                 </label>
                 <select
                   required
@@ -2653,12 +2846,14 @@ export default function FinanceManagementPage() {
                     cursor: 'pointer',
                   }}
                 >
-                  <option value="">Select custodian...</option>
-                  {handlers.map((h) => (
-                    <option key={h.id} value={h.id}>
-                      {h.name} ({h.role || 'Member'})
-                    </option>
-                  ))}
+                  <option value="">Select recipient custodian (സ്വീകരിക്കുന്ന വ്യക്തി)...</option>
+                  {handlers
+                    .filter((h) => h.id !== handoverForm.sourceHandlerId)
+                    .map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name} ({h.role || 'Member'})
+                      </option>
+                    ))}
                 </select>
                 {handlers.length === 0 && (
                   <p style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '4px', margin: 0 }}>
@@ -3491,9 +3686,100 @@ export default function FinanceManagementPage() {
               {/* Type: HANDOVER */}
               {editingRecord.type === 'handover' && (
                 <>
+                  {/* 1. FROM: SOURCE */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '6px' }}>
+                      1. Handover From (ആരിൽ നിന്ന് / Where From) *
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, sourceType: 'kuppam_main', sourceHandlerId: '' })}
+                        style={{
+                          padding: '8px 4px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          border: editForm.sourceType === 'kuppam_main' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: editForm.sourceType === 'kuppam_main' ? '#EFF6FF' : '#FFFFFF',
+                          color: editForm.sourceType === 'kuppam_main' ? '#1D4ED8' : '#475569',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Kuppam Treasury
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, sourceType: 'kuppam_handler' })}
+                        style={{
+                          padding: '8px 4px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          border: editForm.sourceType === 'kuppam_handler' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: editForm.sourceType === 'kuppam_handler' ? '#EFF6FF' : '#FFFFFF',
+                          color: editForm.sourceType === 'kuppam_handler' ? '#1D4ED8' : '#475569',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Person (Custodian)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, sourceType: 'district', sourceHandlerId: '' })}
+                        style={{
+                          padding: '8px 4px',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          borderRadius: '8px',
+                          border: editForm.sourceType === 'district' ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: editForm.sourceType === 'district' ? '#EFF6FF' : '#FFFFFF',
+                          color: editForm.sourceType === 'district' ? '#1D4ED8' : '#475569',
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                        }}
+                      >
+                        District Fund
+                      </button>
+                    </div>
+
+                    {editForm.sourceType === 'kuppam_handler' && (
+                      <div>
+                        <select
+                          required
+                          value={editForm.sourceHandlerId}
+                          onChange={(e) => setEditForm({ ...editForm, sourceHandlerId: e.target.value })}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            fontSize: '0.88rem',
+                            border: '1px solid #CBD5E1',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            marginTop: '4px',
+                          }}
+                        >
+                          <option value="">Select source person (Person A - ആരിൽ നിന്ന്)...</option>
+                          {handlers.map((h) => {
+                            const stat = financeData.handlerStats[h.id];
+                            const bal = stat ? stat.balancePaise : 0;
+                            return (
+                              <option key={h.id} value={h.id}>
+                                {h.name} ({h.role || 'Member'}) — Balance: {formatINR(bal)}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. TO: RECIPIENT */}
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#334155', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      Recipient Custodian *
+                      2. Handover To (ആർക്ക് നൽകുന്നു - Recipient Person B) *
                     </label>
                     <select
                       required
@@ -3508,12 +3794,14 @@ export default function FinanceManagementPage() {
                         cursor: 'pointer',
                       }}
                     >
-                      <option value="">Select custodian...</option>
-                      {handlers.map((h) => (
-                        <option key={h.id} value={h.id}>
-                          {h.name} ({h.role || 'Member'})
-                        </option>
-                      ))}
+                      <option value="">Select recipient custodian (സ്വീകരിക്കുന്ന വ്യക്തി)...</option>
+                      {handlers
+                        .filter((h) => h.id !== editForm.sourceHandlerId)
+                        .map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.name} ({h.role || 'Member'})
+                          </option>
+                        ))}
                     </select>
                   </div>
 

@@ -87,11 +87,19 @@ export async function recordMoneyHandover(data: {
   sourceType?: FinanceSourceType; // default 'kuppam_main'
   sourceHandlerId?: string;
   sourceHandlerName?: string;
+  title?: string;
   date: string;
   notes?: string;
   createdByUid: string;
   createdByName: string;
 }): Promise<string> {
+  const defaultTitle =
+    data.sourceType === 'handler' && data.sourceHandlerName
+      ? `Funds Handed over from ${data.sourceHandlerName} to ${data.targetHandlerName}`
+      : data.sourceType === 'district'
+      ? `District Funds Handed over to ${data.targetHandlerName}`
+      : `Funds Handed over to ${data.targetHandlerName}`;
+
   const docRef = await addDoc(collection(db, RECORDS_COLLECTION), {
     recordNumber: generateRecordNumber('HND'),
     type: 'handover' as FinanceRecordType,
@@ -101,7 +109,7 @@ export async function recordMoneyHandover(data: {
     sourceHandlerName: data.sourceHandlerName || 'Kuppam Main Treasury',
     targetHandlerId: data.targetHandlerId,
     targetHandlerName: data.targetHandlerName,
-    title: `Funds Handed over to ${data.targetHandlerName}`,
+    title: data.title || defaultTitle,
     date: data.date,
     notes: data.notes || '',
     status: 'active',
